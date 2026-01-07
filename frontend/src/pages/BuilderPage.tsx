@@ -3,6 +3,8 @@ import axios from "axios";
 import { BACKEND_URL } from "../config";
 import { FileExplorer } from "../components/FileExplorer";
 import { FilePreview } from "../components/FilePreview";
+import { CodeEditor } from "../components/CodeEditor";
+import { ChatPanel } from "../components/ChatPanel";
 import { useInitializeProject } from "../hooks/useInitializeProject";
 import { useLocation } from "react-router-dom";
 import { parseXml } from "../utils";
@@ -18,6 +20,11 @@ interface BuilderProps {
   setFiles: (files: FileItem[]) => void;
 }
 
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export function BuilderPage({ files, setFiles }: BuilderProps) {
   useInitializeProject();
 
@@ -26,20 +33,77 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
   const { task } = location.state as { task: string };
 
   const [loading, setLoading] = useState(false);
-  const [templateSet, setTemplateSet] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
-  const [followUpPrompt, setFollowUpPrompt] = useState("");
-  const [llmMessages, setLlmMessages] = useState<
-    {
-      role: "user" | "assistant";
-      content: string;
-    }[]
-  >([]);
-
-  console.log(llmMessages);
+  const [llmMessages, setLlmMessages] = useState<Message[]>([]);
 
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
-  const [activeTab, setActiveTab] = useState<"code" | "preview">("code");
+  const [activeTab, setActiveTab] = useState<
+    "code" | "editor" | "chat" | "preview"
+  >("code");
+
+  // Handle file updates from editor
+  const handleCodeChange = (newCode: string) => {
+    if (!selectedFile) return;
+
+    const updateFileContent = (items: FileItem[]): FileItem[] => {
+      return items.map((item) => {
+        if (item.path === selectedFile.path && item.type === "file") {
+          return { ...item, content: newCode };
+        }
+        if (item.type === "folder" && item.children) {
+          return {
+            ...item,
+            children: updateFileContent(item.children),
+          };
+        }
+        return item;
+      });
+    };
+
+    setFiles(updateFileContent(files));
+    setSelectedFile({ ...selectedFile, content: newCode });
+  };
+
+  // Handle chat messages
+  const handleSendMessage = async (message: string) => {
+    const newMessage: Message = {
+      role: "user",
+      content: message,
+    };
+
+    setLlmMessages((prev) => [...prev, newMessage]);
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${BACKEND_URL}/api/chat`, {
+        messages: [...llmMessages, newMessage],
+      });
+
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: response.data.response,
+      };
+
+      setLlmMessages((prev) => [...prev, assistantMessage]);
+
+      // Parse and add new steps
+      const newSteps = parseXml(response.data.response).map((x) => ({
+        ...x,
+        status: "pending" as "pending",
+      }));
+
+      setSteps((prev) => [...prev, ...newSteps]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      const errorMessage: Message = {
+        role: "assistant",
+        content: "Sorry, I encountered an error. Please try again.",
+      };
+      setLlmMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const createMountStructure = (files: FileItem[]): Record<string, any> => {
@@ -47,7 +111,6 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
 
       const processFile = (file: FileItem, isRootFolder: boolean) => {
         if (file.type === "folder") {
-          // For folders, create a directory entry
           mountStructure[file.name] = {
             directory: file.children
               ? Object.fromEntries(
@@ -66,7 +129,6 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
               },
             };
           } else {
-            // For files, create a file entry with contents
             return {
               file: {
                 contents: file.content || "",
@@ -78,41 +140,34 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
         return mountStructure[file.name];
       };
 
-      // Process each top-level file/folder
       files.forEach((file) => processFile(file, true));
       return mountStructure;
     };
 
     const mountStructure = createMountStructure(files);
-    // Mount the structure if WebContainer is available
-    console.log(mountStructure);
     webContainer?.mount(mountStructure);
-    console.log("Web container is");
-    console.log(webContainer);
   }, [files, webContainer]);
 
   useEffect(() => {
     let originalFiles = [...files];
     let updateHappened = false;
+
     steps
       .filter(({ status }) => status === "pending")
       .map((step) => {
         updateHappened = true;
         if (step?.type === StepType.CreateFile) {
-          let parsedPath = step.path?.split("/") ?? []; // ["src", "components", "App.tsx"]
-
-          let currentFileStructure = [...originalFiles]; // {}
+          let parsedPath = step.path?.split("/") ?? [];
+          let currentFileStructure = [...originalFiles];
           const finalAnswerRef = currentFileStructure;
-
           let currentFolder = "";
+
           while (parsedPath.length) {
             currentFolder = `${currentFolder}/${parsedPath[0]}`;
             const currentFolderName = parsedPath[0];
-            console.log(currentFolderName);
             parsedPath = parsedPath.slice(1);
 
             if (!parsedPath.length) {
-              // final file
               const file = currentFileStructure.find(
                 (x) => x.path === currentFolder
               );
@@ -127,12 +182,10 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
                 file.content = step.code;
               }
             } else {
-              /// in a folder
               const folder = currentFileStructure.find(
                 (x) => x.path === currentFolder
               );
               if (!folder) {
-                // create the folder
                 currentFileStructure.push({
                   name: currentFolderName,
                   type: "folder",
@@ -153,23 +206,19 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
     if (updateHappened) {
       setFiles(originalFiles);
       setSteps((steps) =>
-        steps.map((s: Step) => {
-          return {
-            ...s,
-            status: "completed",
-          };
-        })
+        steps.map((s: Step) => ({
+          ...s,
+          status: "completed",
+        }))
       );
     }
-    console.log(files);
   }, [steps, files]);
 
   async function init() {
     const response = await axios.post(`${BACKEND_URL}/api/template`, {
       prompt: task,
     });
-    setTemplateSet(true);
-    console.log(response.data);
+
     const { prompts, uiPrompts } = response.data;
 
     setSteps(
@@ -178,14 +227,16 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
         status: "pending",
       }))
     );
+
     setLoading(true);
 
     const stepsResponse = await axios.post(`${BACKEND_URL}/api/chat`, {
-      messages: [...task, prompts].map((content) => ({
+      messages: [...prompts, task].map((content) => ({
         role: "user",
         content,
       })),
     });
+
     setLoading(false);
 
     setSteps((s) => [
@@ -196,16 +247,16 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
       })),
     ]);
 
-    setLlmMessages(
-      [...prompts, prompt].map((content) => ({
+    // Initialize chat with initial messages
+    setLlmMessages([
+      {
         role: "user",
-        content,
-      }))
-    );
-
-    setLlmMessages((x) => [
-      ...x,
-      { role: "assistant", content: stepsResponse.data.response },
+        content: task,
+      },
+      {
+        role: "assistant",
+        content: stepsResponse.data.response,
+      },
     ]);
   }
 
@@ -213,82 +264,45 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
     init();
   }, []);
 
-  async function followUp() {
-    if (followUpPrompt != "") {
-      const newMessage = {
-        role: "user" as "user",
-        content: followUpPrompt,
-      };
-      setFollowUpPrompt("");
-      setLoading(true);
-      const stepsResponse = await axios.post(`${BACKEND_URL}/api/chat`, {
-        messages: [...llmMessages, newMessage].map((content) => ({
-          role: "user",
-          content,
-        })),
-      });
-      setLoading(false);
-
-      setLlmMessages((x) => [...x, newMessage]);
-
-      setLlmMessages((x) => [
-        ...x,
-        {
-          role: "assistant",
-          content: stepsResponse.data.resonse,
-        },
-      ]);
-
-      setSteps((s) => [
-        ...s,
-        ...parseXml(stepsResponse.data.response).map((x) => ({
-          ...x,
-          status: "pending" as "pending",
-        })),
-      ]);
-    }
-  }
-
   return (
     <div className="flex-1 overflow-hidden">
       <div className="h-full grid grid-cols-4 gap-6 p-6">
+        {/* Left Sidebar - Steps */}
         <div className="col-span-1 space-y-6 overflow-auto">
-          <div>
-            <div className="max-h-[75vh] overflow-scroll">
-              <StepsList steps={steps} currentStep={1} onStepClick={() => {}} />
-            </div>
-            {(loading || !templateSet) && <Loader />}
-            {(!loading || !templateSet) && (
-              <div className="flex w-full p-2 mt-5 rounded-lg shadow-md">
-                <input
-                  type="text"
-                  className="flex-1 p-2 bg-white text-indigo-600 border border-gray-300 rounded-l-lg text-sm outline-none dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                  placeholder="Type your message..."
-                  onChange={(e) => {
-                    if (e.target.value.trim() !== "") {
-                      setFollowUpPrompt(e.target.value);
-                    }
-                  }}
-                />
-                <button
-                  className="px-4 py-2 bg-indigo-500 text-white rounded-r-lg hover:bg-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition duration-200 ease-in-out text-sm dark:bg-indigo-700 dark:hover:bg-indigo-600"
-                  onClick={followUp}
-                >
-                  Send
-                </button>
-              </div>
-            )}
+          <div className="max-h-[85vh] overflow-scroll">
+            <StepsList steps={steps} currentStep={1} onStepClick={() => {}} />
           </div>
+          {loading && (
+            <div className="flex items-center justify-center p-4">
+              <Loader className="animate-spin w-6 h-6 text-indigo-500" />
+            </div>
+          )}
         </div>
+
+        {/* Middle - File Explorer */}
         <div className="col-span-1">
           <FileExplorer files={files} onFileSelect={setSelectedFile} />
         </div>
+
+        {/* Right - Tabs and Content */}
         <div className="col-span-2 bg-gray-900 rounded-lg shadow-lg h-[calc(100vh-8rem)]">
           <TabView activeTab={activeTab} onTabChange={setActiveTab} />
-          <div className="h-[calc(100%-4rem)]">
-            {activeTab === "code" ? (
-              <FilePreview selectedFile={selectedFile} />
-            ) : (
+          <div className="h-[calc(100%-5rem)]">
+            {activeTab === "code" && <FilePreview selectedFile={selectedFile} />}
+            {activeTab === "editor" && (
+              <CodeEditor
+                selectedFile={selectedFile}
+                onCodeChange={handleCodeChange}
+              />
+            )}
+            {activeTab === "chat" && (
+              <ChatPanel
+                messages={llmMessages}
+                onSendMessage={handleSendMessage}
+                isLoading={loading}
+              />
+            )}
+            {activeTab === "preview" && (
               <PreviewFrame webContainer={webContainer} />
             )}
           </div>
