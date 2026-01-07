@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.gutter {
+  background-color: theme('colors.gray.800');
+}
+
+.gutter:hover {
+  background-color: theme('colors.indigo.500');
+}
+
+.gutter.gutter-horizontal {
+  cursor: col-resize;
+}
