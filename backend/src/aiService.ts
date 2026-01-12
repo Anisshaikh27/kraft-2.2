@@ -34,7 +34,7 @@ async function generateWithGemini(
   messages: Message[],
   systemPrompt?: string
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   // Convert messages to Gemini format
   const chat = model.startChat({
@@ -56,6 +56,13 @@ async function generateWithGemini(
 
   const result = await chat.sendMessage(prompt);
   const response = await result.response;
+
+
+  // Print Gemini's response to your backend terminal
+  console.log("--- GEMINI RESPONSE START ---");
+  console.log(response.text());
+  console.log("--- GEMINI RESPONSE END ---");
+  
   return response.text();
 }
 
@@ -79,7 +86,7 @@ async function generateWithClaude(
 export async function determineTemplate(prompt: string): Promise<string> {
   try {
     // Try Gemini first
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(
       `${prompt}\n\nReturn either 'node' or 'react' based on what this project should be. Only return a single word either 'node' or 'react'. Do not return anything extra.`
     );
