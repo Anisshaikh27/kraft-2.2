@@ -1,0 +1,1597 @@
+REQUEST : "Could you please assist in creating a comprehensive React Vite e-commerce website with basic functionalities, similar to Zepto, including features such as user authentication, product catalog, shopping cart, payment gateway integration, and order management, to provide a seamless user experience"
+
+RESPONSE:
+
+Okay, this is an exciting challenge! Creating a comprehensive e-commerce website with a beautiful, non-cookie-cutter design, while adhering to the specified tech stack and constraints, requires careful planning and execution.
+
+I will build out the core functionalities you requested: user authentication (mocked), product catalog, shopping cart, and placeholders for payment/order management. I'll focus on a clean, modern aesthetic using Tailwind CSS and leverage Lucide React for icons and Unsplash for stock imagery.
+
+Since `react-router-dom` is an external package and you've asked to avoid them unless absolutely necessary or requested, I will implement a basic client-side routing mechanism using React's `useState` and `useContext` to switch between pages. This will demonstrate the different views without adding external dependencies. If you wish for a more robust routing solution, please let me know, and I can suggest integrating `react-router-dom`.
+
+Here's a breakdown of the structure and the files I'll create/modify:
+
+**File Structure:**
+
+```
+src/
+├── App.tsx             // Main application component, handles basic routing
+├── main.tsx            // Entry point
+├── index.css           // Tailwind CSS imports
+├── components/
+│   ├── layout/
+│   │   ├── Header.tsx      // Navigation, logo, user actions, cart preview
+│   │   └── Footer.tsx      // Standard footer
+│   ├── auth/
+│   │   ├── LoginForm.tsx   // Login form
+│   │   └── RegisterForm.tsx// Registration form
+│   ├── products/
+│   │   ├── ProductCard.tsx // Displays a single product
+│   │   └── ProductGrid.tsx // Displays a grid of ProductCards
+│   ├── cart/
+│   │   ├── CartItem.tsx    // Displays a single item in the cart
+│   │   └── CartSummary.tsx // Displays cart total and checkout button
+│   └── ui/
+│       └── Button.tsx      // Reusable button component
+│       └── Input.tsx       // Reusable input component
+├── pages/
+│   ├── HomePage.tsx        // Displays product grid
+│   ├── ProductDetailPage.tsx // Displays details of a single product
+│   ├── CartPage.tsx        // Displays the shopping cart
+│   ├── AuthPage.tsx        // Contains Login and Register forms
+│   ├── CheckoutPage.tsx    // Placeholder for checkout
+│   └── OrderConfirmationPage.tsx // Placeholder for order confirmation
+├── context/
+│   ├── AuthContext.tsx     // Manages user authentication state
+│   └── CartContext.tsx     // Manages shopping cart state
+├── data/
+│   └── products.ts         // Mock product data
+└── types/
+    └── index.ts            // TypeScript types for products, user, etc.
+```
+
+---
+
+Let's start building!
+
+<boltAction type="file" filePath="src/index.css">
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar for a cleaner look */
+body {
+  scrollbar-width: thin;
+  scrollbar-color: #a8a29e #f3f4f6; /* thumb and track */
+}
+
+body::-webkit-scrollbar {
+  width: 8px;
+}
+
+body::-webkit-scrollbar-track {
+  background: #f3f4f6; /* gray-100 */
+}
+
+body::-webkit-scrollbar-thumb {
+  background-color: #a8a29e; /* stone-400 */
+  border-radius: 4px;
+  border: 2px solid #f3f4f6;
+}
+
+/* Custom button focus state */
+.btn-primary:focus-visible {
+  outline: 2px solid #f97316; /* orange-500 */
+  outline-offset: 2px;
+}
+.btn-secondary:focus-visible {
+  outline: 2px solid #6b7280; /* gray-500 */
+  outline-offset: 2px;
+}
+.btn-ghost:focus-visible {
+  outline: 2px solid #6b7280; /* gray-500 */
+  outline-offset: 2px;
+}
+```
+</boltAction>
+<boltAction type="file" filePath="src/types/index.ts">
+```typescript
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  category: string;
+  rating: number;
+  stock: number;
+}
+
+export interface CartItem extends Product {
+  quantity: number;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  token: string; // Mock token
+}
+
+export type Page =
+  | 'home'
+  | 'productDetail'
+  | 'cart'
+  | 'auth'
+  | 'checkout'
+  | 'orderConfirmation';
+```
+</boltAction>
+<boltAction type="file" filePath="src/data/products.ts">
+```typescript
+import { Product } from '../types';
+
+export const products: Product[] = [
+  {
+    id: 'prod101',
+    name: 'Organic Fresh Apples (1kg)',
+    description: 'Crisp, sweet, and organically grown apples, perfect for snacking or baking. Sourced from local farms.',
+    price: 3.99,
+    imageUrl: 'https://images.unsplash.com/photo-1579613832111-ac7dfc330f57?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Fruits & Vegetables',
+    rating: 4.8,
+    stock: 150,
+  },
+  {
+    id: 'prod102',
+    name: 'Whole Wheat Bread Loaf',
+    description: 'Freshly baked whole wheat bread, rich in fiber and nutrients. A healthy staple for your daily meals.',
+    price: 2.49,
+    imageUrl: 'https://images.unsplash.com/photo-1588964895597-ea0141398933?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Bakery',
+    rating: 4.5,
+    stock: 80,
+  },
+  {
+    id: 'prod103',
+    name: 'Farm Fresh Eggs (12 pcs)',
+    description: 'Large, brown eggs from free-range chickens. Excellent source of protein for a nutritious start to your day.',
+    price: 4.29,
+    imageUrl: 'https://images.unsplash.com/photo-1583250647184-18f1f513d2f9?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Dairy & Eggs',
+    rating: 4.7,
+    stock: 100,
+  },
+  {
+    id: 'prod104',
+    name: 'Pure Cow Milk (1 Liter)',
+    description: 'Pasteurized and homogenized pure cow milk. Rich in calcium, essential for strong bones.',
+    price: 1.89,
+    imageUrl: 'https://images.unsplash.com/photo-1607532941433-b0542845addd?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Dairy & Eggs',
+    rating: 4.6,
+    stock: 120,
+  },
+  {
+    id: 'prod105',
+    name: 'Premium Basmati Rice (5kg)',
+    description: 'Aromatic long-grain basmati rice, perfect for biryanis and pilafs. Elevate your culinary experience.',
+    price: 12.99,
+    imageUrl: 'https://images.unsplash.com/photo-1626201389501-8b0680325d2b?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Pantry Staples',
+    rating: 4.9,
+    stock: 70,
+  },
+  {
+    id: 'prod106',
+    name: 'Fresh Spinach Bunch',
+    description: 'Nutrient-rich fresh spinach, ideal for salads, stir-fries, or smoothies. Boost your daily greens intake.',
+    price: 1.50,
+    imageUrl: 'https://images.unsplash.com/photo-1550980460-70862024220b?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Fruits & Vegetables',
+    rating: 4.4,
+    stock: 90,
+  },
+  {
+    id: 'prod107',
+    name: 'Artisan Coffee Beans (250g)',
+    description: 'Medium roast artisan coffee beans with notes of chocolate and caramel. Perfect for your morning brew.',
+    price: 8.99,
+    imageUrl: 'https://images.unsplash.com/photo-1517701198425-a22652c50257?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Beverages',
+    rating: 4.7,
+    stock: 60,
+  },
+  {
+    id: 'prod108',
+    name: 'Olive Oil Extra Virgin (500ml)',
+    description: 'Premium extra virgin olive oil, cold-pressed from the finest olives. Ideal for cooking and dressing salads.',
+    price: 9.99,
+    imageUrl: 'https://images.unsplash.com/photo-1621327178051-574a441113b6?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Pantry Staples',
+    rating: 4.8,
+    stock: 75,
+  },
+  {
+    id: 'prod109',
+    name: 'Assorted Berries Pack (500g)',
+    description: 'A delightful mix of fresh strawberries, blueberries, and raspberries. Packed with antioxidants.',
+    price: 5.99,
+    imageUrl: 'https://images.unsplash.com/photo-1543083477-d669ae3b50dd?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Fruits & Vegetables',
+    rating: 4.9,
+    stock: 110,
+  },
+  {
+    id: 'prod110',
+    name: 'Organic Honey (250g)',
+    description: 'Pure, raw, and organic honey from wildflowers. A natural sweetener with numerous health benefits.',
+    price: 6.75,
+    imageUrl: 'https://images.unsplash.com/photo-1558204642-494b598b0f7e?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Pantry Staples',
+    rating: 4.6,
+    stock: 95,
+  },
+];
+```
+</boltAction>
+<boltAction type="file" filePath="src/context/AuthContext.tsx">
+```typescript
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { User } from '../types';
+
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(() => {
+    // Initialize user from localStorage if available
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
+
+  const login = async (email: string, password: string) => {
+    // Mock authentication
+    if (email === 'test@example.com' && password === 'password') {
+      const mockUser: User = { id: 'user123', name: 'Test User', email, token: 'mock-auth-token' };
+      setUser(mockUser);
+      return true;
+    }
+    console.error('Login failed: Invalid credentials');
+    return false;
+  };
+
+  const register = async (name: string, email: string, password: string) => {
+    // Mock registration
+    // In a real app, you'd make an API call here.
+    // For simplicity, we'll just "register" and log them in
+    if (email && password && name) {
+      const mockUser: User = { id: `user-${Date.now()}`, name, email, token: 'mock-auth-token' };
+      setUser(mockUser);
+      return true;
+    }
+    console.error('Registration failed: Missing information');
+    return false;
+  };
+
+  const logout = () => {
+    setUser(null);
+  };
+
+  const isAuthenticated = !!user;
+
+  return (
+    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+```
+</boltAction>
+<boltAction type="file" filePath="src/context/CartContext.tsx">
+```typescript
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
+import { CartItem, Product } from '../types';
+
+interface CartContextType {
+  cartItems: CartItem[];
+  addToCart: (product: Product, quantity?: number) => void;
+  removeFromCart: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
+  clearCart: () => void;
+  cartTotal: number;
+  itemCount: number;
+}
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export const CartProvider = ({ children }: { children: ReactNode }) => {
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    const storedCart = localStorage.getItem('cartItems');
+    return storedCart ? JSON.parse(storedCart) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  const addToCart = useCallback((product: Product, quantity: number = 1) => {
+    setCartItems((prevItems) => {
+      const existingItem = prevItems.find((item) => item.id === product.id);
+      if (existingItem) {
+        return prevItems.map((item) =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      } else {
+        return [...prevItems, { ...product, quantity }];
+      }
+    });
+  }, []);
+
+  const removeFromCart = useCallback((productId: string) => {
+    setCartItems((prevItems) => prevItems.filter((item) => item.id !== productId));
+  }, []);
+
+  const updateQuantity = useCallback((productId: string, quantity: number) => {
+    setCartItems((prevItems) => {
+      if (quantity <= 0) {
+        return prevItems.filter((item) => item.id !== productId);
+      }
+      return prevItems.map((item) =>
+        item.id === productId ? { ...item, quantity } : item
+      );
+    });
+  }, []);
+
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+  }, []);
+
+  const cartTotal = cartItems.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0
+  );
+
+  const itemCount = cartItems.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
+
+  return (
+    <CartContext.Provider
+      value={{
+        cartItems,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        clearCart,
+        cartTotal,
+        itemCount,
+      }}
+    >
+      {children}
+    </CartContext.Provider>
+  );
+};
+
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (context === undefined) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+};
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/ui/Button.tsx">
+```typescript
+import React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { twMerge } from 'tailwind-merge';
+
+const buttonVariants = cva(
+  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-orange-600 text-white hover:bg-orange-700 btn-primary',
+        secondary: 'bg-stone-200 text-stone-800 hover:bg-stone-300 btn-secondary',
+        outline: 'border border-stone-300 bg-white hover:bg-stone-100 text-stone-700 btn-secondary',
+        ghost: 'hover:bg-stone-100 hover:text-stone-700 btn-ghost',
+        link: 'text-orange-600 underline-offset-4 hover:underline btn-primary',
+      },
+      size: {
+        default: 'h-10 px-4 py-2',
+        sm: 'h-9 rounded-md px-3',
+        lg: 'h-11 rounded-md px-8',
+        icon: 'h-10 w-10',
+      },
+    },
+    defaultVariants: {
+      variant: 'primary',
+      size: 'default',
+    },
+  }
+);
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
+  asChild?: boolean; // Not used here, but common pattern
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    // 'asChild' is a pattern for component composition, not strictly needed for this simple Button
+    // If it were used, it would render the child element with the button styles.
+    return (
+      <button
+        className={twMerge(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Button.displayName = 'Button';
+
+export { Button, buttonVariants };
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/ui/Input.tsx">
+```typescript
+import React from 'react';
+import { twMerge } from 'tailwind-merge';
+
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type = 'text', ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        className={twMerge(
+          'flex h-10 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Input.displayName = 'Input';
+
+export { Input };
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/layout/Header.tsx">
+```typescript
+import React, { useState } from 'react';
+import { ShoppingCart, User, Package, LogOut, Home, Store, X, Menu, Search } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
+import { Button } from '../ui/Button';
+import { Page } from '../../types';
+
+interface HeaderProps {
+  onNavigate: (page: Page, productId?: string) => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
+  const { isAuthenticated, user, logout } = useAuth();
+  const { itemCount, cartItems } = useCart();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCartPreviewOpen, setIsCartPreviewOpen] = useState(false);
+
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const toggleCartPreview = () => setIsCartPreviewOpen(!isCartPreviewOpen);
+
+  const handleLogout = () => {
+    logout();
+    onNavigate('home');
+    setIsMobileMenuOpen(false); // Close menu on logout
+  };
+
+  const handleNavigation = (page: Page, productId?: string) => {
+    onNavigate(page, productId);
+    setIsMobileMenuOpen(false); // Close menu on navigation
+    setIsCartPreviewOpen(false); // Close cart preview on navigation
+  };
+
+  return (
+    <header className="bg-white shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        {/* Logo and Mobile Menu */}
+        <div className="flex items-center">
+          <Button variant="ghost" size="icon" className="md:hidden mr-2" onClick={toggleMobileMenu}>
+            <Menu className="h-6 w-6 text-stone-700" />
+            <span className="sr-only">Toggle mobile menu</span>
+          </Button>
+          <button onClick={() => handleNavigation('home')} className="flex items-center space-x-2 text-2xl font-bold text-orange-600 hover:text-orange-700 transition-colors">
+            <Store className="h-8 w-8" />
+            <span>ZeptoMart</span>
+          </button>
+        </div>
+
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center space-x-6">
+          <Button variant="ghost" onClick={() => handleNavigation('home')} className="text-stone-700 hover:text-orange-600 transition-colors">
+            <Home className="h-4 w-4 mr-2" /> Home
+          </Button>
+          {/* <Button variant="ghost" onClick={() => handleNavigation('products')} className="text-stone-700 hover:text-orange-600 transition-colors">
+            <Package className="h-4 w-4 mr-2" /> Products
+          </Button> */}
+          {isAuthenticated ? (
+            <>
+              <span className="text-stone-600">Hi, {user?.name.split(' ')[0]}!</span>
+              <Button variant="ghost" onClick={handleLogout} className="text-stone-700 hover:text-orange-600 transition-colors">
+                <LogOut className="h-4 w-4 mr-2" /> Logout
+              </Button>
+            </>
+          ) : (
+            <Button variant="ghost" onClick={() => handleNavigation('auth')} className="text-stone-700 hover:text-orange-600 transition-colors">
+              <User className="h-4 w-4 mr-2" /> Login / Register
+            </Button>
+          )}
+          <div className="relative">
+            <Button variant="ghost" size="icon" onClick={toggleCartPreview} className="relative text-stone-700 hover:text-orange-600 transition-colors">
+              <ShoppingCart className="h-6 w-6" />
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {itemCount}
+                </span>
+              )}
+              <span className="sr-only">Shopping Cart</span>
+            </Button>
+            {isCartPreviewOpen && (
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-stone-200 rounded-lg shadow-lg p-4 z-50">
+                <div className="flex justify-between items-center mb-3 pb-2 border-b border-stone-100">
+                  <h3 className="font-semibold text-stone-800">Your Cart ({itemCount} items)</h3>
+                  <Button variant="ghost" size="icon" onClick={toggleCartPreview} className="h-8 w-8">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close cart preview</span>
+                  </Button>
+                </div>
+                {cartItems.length === 0 ? (
+                  <p className="text-stone-500 text-center py-4">Your cart is empty.</p>
+                ) : (
+                  <>
+                    <ul className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      {cartItems.map((item) => (
+                        <li key={item.id} className="flex items-center space-x-3">
+                          <img src={item.imageUrl} alt={item.name} className="w-12 h-12 object-cover rounded-md" />
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-stone-800 line-clamp-1">{item.name}</h4>
+                            <p className="text-xs text-stone-500">{item.quantity} x ${item.price.toFixed(2)}</p>
+                          </div>
+                          <span className="text-sm font-semibold text-stone-700">${(item.quantity * item.price).toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-4 pt-4 border-t border-stone-100 flex justify-between items-center">
+                      <span className="text-base font-semibold text-stone-800">Total:</span>
+                      <span className="text-lg font-bold text-orange-600">${cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2)}</span>
+                    </div>
+                    <Button onClick={() => handleNavigation('cart')} className="w-full mt-4">
+                      View Cart
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </nav>
+
+        {/* Mobile Menu Overlay */}
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={toggleMobileMenu}></div>
+        )}
+        <div className={`fixed inset-y-0 left-0 w-64 bg-white shadow-xl z-50 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out md:hidden`}>
+          <div className="flex items-center justify-between p-4 border-b border-stone-100">
+            <span className="text-xl font-bold text-orange-600">Menu</span>
+            <Button variant="ghost" size="icon" onClick={toggleMobileMenu}>
+              <X className="h-6 w-6" />
+              <span className="sr-only">Close menu</span>
+            </Button>
+          </div>
+          <nav className="flex flex-col p-4 space-y-2">
+            <Button variant="ghost" className="justify-start text-stone-700 hover:text-orange-600" onClick={() => handleNavigation('home')}>
+              <Home className="h-5 w-5 mr-3" /> Home
+            </Button>
+            {/* <Button variant="ghost" className="justify-start text-stone-700 hover:text-orange-600" onClick={() => handleNavigation('products')}>
+              <Package className="h-5 w-5 mr-3" /> Products
+            </Button> */}
+            <Button variant="ghost" className="justify-start text-stone-700 hover:text-orange-600 relative" onClick={() => handleNavigation('cart')}>
+              <ShoppingCart className="h-5 w-5 mr-3" /> Cart
+              {itemCount > 0 && (
+                <span className="absolute right-4 bg-orange-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {itemCount}
+                </span>
+              )}
+            </Button>
+            {isAuthenticated ? (
+              <>
+                <div className="py-2 text-stone-600 font-medium border-t border-stone-100 mt-2 pt-2">
+                  <User className="h-5 w-5 mr-3 inline-block" /> Hi, {user?.name.split(' ')[0]}!
+                </div>
+                <Button variant="ghost" className="justify-start text-stone-700 hover:text-orange-600" onClick={handleLogout}>
+                  <LogOut className="h-5 w-5 mr-3" /> Logout
+                </Button>
+              </>
+            ) : (
+              <Button variant="ghost" className="justify-start text-stone-700 hover:text-orange-600" onClick={() => handleNavigation('auth')}>
+                <User className="h-5 w-5 mr-3" /> Login / Register
+              </Button>
+            )}
+          </nav>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Header;
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/layout/Footer.tsx">
+```typescript
+import React from 'react';
+import { Store } from 'lucide-react';
+
+const Footer: React.FC = () => {
+  return (
+    <footer className="bg-stone-800 text-stone-200 py-8 mt-12">
+      <div className="container mx-auto px-4 text-center">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="flex items-center space-x-2 text-2xl font-bold text-orange-400">
+            <Store className="h-7 w-7" />
+            <span>ZeptoMart</span>
+          </div>
+          <p className="text-stone-400 max-w-md">
+            Your daily dose of freshness, delivered right to your doorstep. Quality groceries, unbeatable prices, and exceptional service.
+          </p>
+          <div className="flex space-x-4 text-stone-400">
+            <a href="#" className="hover:text-orange-400 transition-colors">About Us</a>
+            <a href="#" className="hover:text-orange-400 transition-colors">Contact</a>
+            <a href="#" className="hover:text-orange-400 transition-colors">Privacy Policy</a>
+          </div>
+        </div>
+        <div className="mt-6 pt-6 border-t border-stone-700 text-stone-500 text-sm">
+          &copy; {new Date().getFullYear()} ZeptoMart. All rights reserved.
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/products/ProductCard.tsx">
+```typescript
+import React from 'react';
+import { Product } from '../../types';
+import { Button } from '../ui/Button';
+import { Star, ShoppingCart } from 'lucide-react';
+
+interface ProductCardProps {
+  product: Product;
+  onAddToCart: (product: Product) => void;
+  onViewDetail: (productId: string) => void;
+}
+
+const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onViewDetail }) => {
+  const { id, name, price, imageUrl, rating } = product;
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col group">
+      <div className="relative overflow-hidden w-full h-48">
+        <img
+          src={imageUrl}
+          alt={name}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={(e) => {
+            e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found'; // Fallback image
+          }}
+        />
+        <Button
+          variant="primary"
+          size="sm"
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          onClick={() => onAddToCart(product)}
+          aria-label={`Add ${name} to cart`}
+        >
+          <ShoppingCart className="h-4 w-4 mr-2" /> Add
+        </Button>
+      </div>
+      <div className="p-4 flex flex-col flex-grow">
+        <h3
+          className="text-lg font-semibold text-stone-800 mb-2 cursor-pointer hover:text-orange-600 transition-colors line-clamp-2"
+          onClick={() => onViewDetail(id)}
+        >
+          {name}
+        </h3>
+        <div className="flex items-center text-sm text-stone-500 mb-2">
+          <Star className="h-4 w-4 fill-amber-400 text-amber-400 mr-1" />
+          <span>{rating.toFixed(1)}</span>
+          <span className="ml-2 text-stone-400">| {product.category}</span>
+        </div>
+        <p className="text-2xl font-bold text-orange-600 mt-auto">${price.toFixed(2)}</p>
+        <Button variant="outline" className="mt-4 w-full" onClick={() => onViewDetail(id)}>
+          View Details
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default ProductCard;
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/products/ProductGrid.tsx">
+```typescript
+import React from 'react';
+import { Product } from '../../types';
+import ProductCard from './ProductCard';
+import { useCart } from '../../context/CartContext';
+
+interface ProductGridProps {
+  products: Product[];
+  onViewDetail: (productId: string) => void;
+}
+
+const ProductGrid: React.FC<ProductGridProps> = ({ products, onViewDetail }) => {
+  const { addToCart } = useCart();
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4">
+      {products.map((product) => (
+        <ProductCard
+          key={product.id}
+          product={product}
+          onAddToCart={addToCart}
+          onViewDetail={onViewDetail}
+        />
+      ))}
+    </div>
+  );
+};
+
+export default ProductGrid;
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/cart/CartItem.tsx">
+```typescript
+import React from 'react';
+import { CartItem as TCartItem } from '../../types';
+import { Button } from '../ui/Button';
+import { Plus, Minus, Trash2 } from 'lucide-react';
+
+interface CartItemProps {
+  item: TCartItem;
+  onUpdateQuantity: (productId: string, quantity: number) => void;
+  onRemove: (productId: string) => void;
+}
+
+const CartItem: React.FC<CartItemProps> = ({ item, onUpdateQuantity, onRemove }) => {
+  const handleQuantityChange = (delta: number) => {
+    onUpdateQuantity(item.id, item.quantity + delta);
+  };
+
+  return (
+    <div className="flex items-center space-x-4 p-4 border-b border-stone-100 last:border-b-0 bg-white rounded-lg shadow-sm">
+      <img
+        src={item.imageUrl}
+        alt={item.name}
+        className="w-20 h-20 object-cover rounded-md flex-shrink-0"
+        onError={(e) => {
+          e.currentTarget.src = 'https://via.placeholder.com/80x80?text=No+Image';
+        }}
+      />
+      <div className="flex-grow">
+        <h3 className="text-lg font-semibold text-stone-800 line-clamp-2">{item.name}</h3>
+        <p className="text-sm text-stone-500">${item.price.toFixed(2)} / item</p>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => handleQuantityChange(-1)}
+          disabled={item.quantity <= 1}
+          aria-label={`Decrease quantity of ${item.name}`}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <span className="w-8 text-center font-medium text-stone-700">{item.quantity}</span>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => handleQuantityChange(1)}
+          aria-label={`Increase quantity of ${item.name}`}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="flex flex-col items-end space-y-1">
+        <span className="text-lg font-bold text-orange-600">${(item.price * item.quantity).toFixed(2)}</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onRemove(item.id)}
+          className="text-stone-500 hover:text-red-600"
+          aria-label={`Remove ${item.name} from cart`}
+        >
+          <Trash2 className="h-5 w-5" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default CartItem;
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/cart/CartSummary.tsx">
+```typescript
+import React from 'react';
+import { useCart } from '../../context/CartContext';
+import { Button } from '../ui/Button';
+import { Page } from '../../types';
+
+interface CartSummaryProps {
+  onNavigate: (page: Page) => void;
+}
+
+const CartSummary: React.FC<CartSummaryProps> = ({ onNavigate }) => {
+  const { cartItems, cartTotal, itemCount, clearCart } = useCart();
+
+  if (itemCount === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
+      <h2 className="text-2xl font-bold text-stone-800 mb-6 border-b pb-4">Order Summary</h2>
+
+      <div className="space-y-3 text-stone-700">
+        <div className="flex justify-between items-center">
+          <span>Subtotal ({itemCount} items)</span>
+          <span className="font-semibold">${cartTotal.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span>Shipping</span>
+          <span className="font-semibold">Free</span> {/* For simplicity */}
+        </div>
+        <div className="flex justify-between items-center border-t pt-4 mt-4 text-xl font-bold text-stone-800">
+          <span>Total</span>
+          <span className="text-orange-600">${cartTotal.toFixed(2)}</span>
+        </div>
+      </div>
+
+      <Button
+        className="w-full mt-8 py-3 text-lg"
+        onClick={() => onNavigate('checkout')}
+      >
+        Proceed to Checkout
+      </Button>
+      <Button
+        variant="ghost"
+        className="w-full mt-4 text-red-600 hover:bg-red-50 hover:text-red-700"
+        onClick={clearCart}
+      >
+        Clear Cart
+      </Button>
+    </div>
+  );
+};
+
+export default CartSummary;
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/auth/LoginForm.tsx">
+```typescript
+import React, { useState } from 'react';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { useAuth } from '../../context/AuthContext';
+import { Page } from '../../types';
+
+interface LoginFormProps {
+  onLoginSuccess: () => void;
+  onNavigate: (page: Page) => void;
+}
+
+const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigate }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const success = await login(email, password);
+      if (success) {
+        onLoginSuccess();
+      } else {
+        setError('Invalid email or password.');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-stone-700 mb-1">
+          Email Address
+        </label>
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="test@example.com"
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-stone-700 mb-1">
+          Password
+        </label>
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="password"
+          required
+        />
+      </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      <Button type="submit" className="w-full py-2.5 text-lg" disabled={loading}>
+        {loading ? 'Logging in...' : 'Login'}
+      </Button>
+      <p className="text-center text-sm text-stone-600">
+        Don't have an account?{' '}
+        <Button variant="link" type="button" onClick={() => onNavigate('auth')} className="px-0">
+          Register here
+        </Button>
+      </p>
+    </form>
+  );
+};
+
+export default LoginForm;
+```
+</boltAction>
+<boltAction type="file" filePath="src/components/auth/RegisterForm.tsx">
+```typescript
+import React, { useState } from 'react';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { useAuth } from '../../context/AuthContext';
+import { Page } from '../../types';
+
+interface RegisterFormProps {
+  onRegisterSuccess: () => void;
+  onNavigate: (page: Page) => void;
+}
+
+const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNavigate }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!name || !email || !password || !confirmPassword) {
+      setError('All fields are required.');
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const success = await register(name, email, password);
+      if (success) {
+        onRegisterSuccess();
+      } else {
+        setError('Registration failed. Please try a different email.');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label htmlFor="name" className="block text-sm font-medium text-stone-700 mb-1">
+          Full Name
+        </label>
+        <Input
+          id="name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="John Doe"
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="email-register" className="block text-sm font-medium text-stone-700 mb-1">
+          Email Address
+        </label>
+        <Input
+          id="email-register"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@example.com"
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="password-register" className="block text-sm font-medium text-stone-700 mb-1">
+          Password
+        </label>
+        <Input
+          id="password-register"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Minimum 6 characters"
+          required
+        />
+      </div>
+      <div>
+        <label htmlFor="confirm-password-register" className="block text-sm font-medium text-stone-700 mb-1">
+          Confirm Password
+        </label>
+        <Input
+          id="confirm-password-register"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Confirm your password"
+          required
+        />
+      </div>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      <Button type="submit" className="w-full py-2.5 text-lg" disabled={loading}>
+        {loading ? 'Registering...' : 'Register'}
+      </Button>
+      <p className="text-center text-sm text-stone-600">
+        Already have an account?{' '}
+        <Button variant="link" type="button" onClick={() => onNavigate('auth')} className="px-0">
+          Login here
+        </Button>
+      </p>
+    </form>
+  );
+};
+
+export default RegisterForm;
+```
+</boltAction>
+<boltAction type="file" filePath="src/pages/HomePage.tsx">
+```typescript
+import React from 'react';
+import ProductGrid from '../components/products/ProductGrid';
+import { products as allProducts } from '../data/products';
+import { Page } from '../types';
+
+interface HomePageProps {
+  onNavigate: (page: Page, productId?: string) => void;
+}
+
+const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <section className="mb-12 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl shadow-xl overflow-hidden relative p-8 md:p-12 flex flex-col md:flex-row items-center justify-between text-white">
+        <div className="md:w-1/2 text-center md:text-left mb-6 md:mb-0">
+          <h1 className="text-4xl md:text-5xl font-extrabold leading-tight mb-4 drop-shadow-md">
+            Fresh Groceries, Delivered Fast
+          </h1>
+          <p className="text-lg md:text-xl font-light opacity-90 max-w-md mx-auto md:mx-0">
+            Get your daily essentials from ZeptoMart. Quality products, unbeatable prices, straight to your door.
+          </p>
+          <button
+            onClick={() => onNavigate('home')} // Stays on home, but could navigate to a 'deals' page
+            className="mt-6 px-8 py-3 bg-white text-orange-600 font-bold rounded-full shadow-lg hover:bg-orange-50 hover:scale-105 transition-all duration-300"
+          >
+            Shop Now!
+          </button>
+        </div>
+        <div className="md:w-1/2 flex justify-center md:justify-end">
+          <img
+            src="https://images.unsplash.com/photo-1542838104-5f502287f978?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+            alt="Fresh groceries"
+            className="w-full max-w-sm md:max-w-md lg:max-w-lg rounded-xl shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500"
+          />
+        </div>
+      </section>
+
+      <section className="mb-12">
+        <h2 className="text-3xl font-bold text-stone-800 mb-8 text-center">Our Top Picks</h2>
+        <ProductGrid products={allProducts} onViewDetail={(id) => onNavigate('productDetail', id)} />
+      </section>
+
+      <section className="bg-stone-50 rounded-2xl p-8 md:p-12 shadow-inner text-center">
+        <h2 className="text-3xl font-bold text-stone-800 mb-4">Why Choose ZeptoMart?</h2>
+        <p className="text-lg text-stone-600 mb-8 max-w-3xl mx-auto">
+          We are committed to providing the freshest products, fastest delivery, and best customer service.
+          Experience a new way to shop for groceries!
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="p-6 bg-white rounded-xl shadow-md flex flex-col items-center transform hover:scale-105 transition-transform duration-300">
+            <img src="https://images.unsplash.com/photo-1594318721151-e249b6b7d3f8?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Freshness" className="w-24 h-24 object-cover rounded-full mb-4 shadow-lg" />
+            <h3 className="text-xl font-semibold text-stone-800 mb-2">Unmatched Freshness</h3>
+            <p className="text-stone-600">Only the highest quality, farm-fresh produce.</p>
+          </div>
+          <div className="p-6 bg-white rounded-xl shadow-md flex flex-col items-center transform hover:scale-105 transition-transform duration-300">
+            <img src="https://images.unsplash.com/photo-1556740738-b6a63e27c4df?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Delivery" className="w-24 h-24 object-cover rounded-full mb-4 shadow-lg" />
+            <h3 className="text-xl font-semibold text-stone-800 mb-2">Speedy Delivery</h3>
+            <p className="text-stone-600">Groceries at your door in a flash, every time.</p>
+          </div>
+          <div className="p-6 bg-white rounded-xl shadow-md flex flex-col items-center transform hover:scale-105 transition-transform duration-300">
+            <img src="https://images.unsplash.com/photo-1556742502-ec7c6b78d23d?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Support" className="w-24 h-24 object-cover rounded-full mb-4 shadow-lg" />
+            <h3 className="text-xl font-semibold text-stone-800 mb-2">24/7 Support</h3>
+            <p className="text-stone-600">Our team is always here to help you.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default HomePage;
+```
+</boltAction>
+<boltAction type="file" filePath="src/pages/ProductDetailPage.tsx">
+```typescript
+import React, { useState, useEffect } from 'react';
+import { Product, Page } from '../types';
+import { products as allProducts } from '../data/products';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { ShoppingCart, Star, ArrowLeft } from 'lucide-react';
+import { useCart } from '../context/CartContext';
+
+interface ProductDetailPageProps {
+  productId: string | null;
+  onNavigate: (page: Page) => void;
+}
+
+const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productId, onNavigate }) => {
+  const [product, setProduct] = useState<Product | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const { addToCart } = useCart();
+
+  useEffect(() => {
+    if (productId) {
+      const foundProduct = allProducts.find((p) => p.id === productId);
+      setProduct(foundProduct || null);
+      setQuantity(1); // Reset quantity when product changes
+    } else {
+      setProduct(null);
+    }
+  }, [productId]);
+
+  if (!product) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center text-stone-600">
+        <h2 className="text-3xl font-bold mb-4">Product Not Found</h2>
+        <p className="mb-6">The product you are looking for does not exist or has been removed.</p>
+        <Button onClick={() => onNavigate('home')}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Home
+        </Button>
+      </div>
+    );
+  }
+
+  const handleAddToCart = () => {
+    addToCart(product, quantity);
+    onNavigate('cart'); // Navigate to cart after adding
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <Button variant="ghost" onClick={() => onNavigate('home')} className="mb-6 text-stone-600 hover:text-orange-600">
+        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Products
+      </Button>
+
+      <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 flex flex-col md:flex-row gap-8">
+        <div className="md:w-1/2 flex justify-center items-center">
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-full max-w-md h-auto object-cover rounded-lg shadow-md"
+            onError={(e) => {
+              e.currentTarget.src = 'https://via.placeholder.com/600x400?text=Image+Not+Found';
+            }}
+          />
+        </div>
+        <div className="md:w-1/2 flex flex-col justify-between">
+          <div>
+            <h1 className="text-4xl font-extrabold text-stone-800 mb-3">{product.name}</h1>
+            <div className="flex items-center text-lg text-stone-500 mb-4">
+              <Star className="h-5 w-5 fill-amber-400 text-amber-400 mr-1" />
+              <span>{product.rating.toFixed(1)} Rating</span>
+              <span className="mx-3 text-stone-400">|</span>
+              <span className="text-orange-600 font-semibold">{product.category}</span>
+            </div>
+            <p className="text-stone-700 leading-relaxed mb-6">{product.description}</p>
+          </div>
+
+          <div className="mt-auto pt-6 border-t border-stone-100">
+            <p className="text-5xl font-bold text-orange-600 mb-6">${product.price.toFixed(2)}</p>
+
+            <div className="flex items-center space-x-4 mb-6">
+              <label htmlFor="quantity" className="text-lg font-medium text-stone-700">Quantity:</label>
+              <div className="flex items-center border border-stone-300 rounded-md">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  aria-label="Decrease quantity"
+                >
+                  <Minus className="h-5 w-5" />
+                </Button>
+                <Input
+                  id="quantity"
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 text-center border-y-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none h-10"
+                  min="1"
+                  aria-live="polite"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setQuantity((prev) => prev + 1)}
+                  aria-label="Increase quantity"
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              className="w-full py-3 text-lg"
+              onClick={handleAddToCart}
+            >
+              <ShoppingCart className="h-5 w-5 mr-3" /> Add to Cart
+            </Button>
+            {product.stock < 10 && product.stock > 0 && (
+              <p className="text-amber-600 text-sm mt-2 text-center">Only {product.stock} left in stock!</p>
+            )}
+            {product.stock === 0 && (
+              <p className="text-red-600 text-sm mt-2 text-center">Out of Stock</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProductDetailPage;
+```
+</boltAction>
+<boltAction type="file" filePath="src/pages/CartPage.tsx">
+```typescript
+import React from 'react';
+import { useCart } from '../context/CartContext';
+import CartItem from '../components/cart/CartItem';
+import CartSummary from '../components/cart/CartSummary';
+import { Button } from '../components/ui/Button';
+import { ArrowLeft, ShoppingCart, Frown } from 'lucide-react';
+import { Page } from '../types';
+
+interface CartPageProps {
+  onNavigate: (page: Page) => void;
+}
+
+const CartPage: React.FC<CartPageProps> = ({ onNavigate }) => {
+  const { cartItems, updateQuantity, removeFromCart, itemCount } = useCart();
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <Button variant="ghost" onClick={() => onNavigate('home')} className="mb-6 text-stone-600 hover:text-orange-600">
+        <ArrowLeft className="h-4 w-4 mr-2" /> Continue Shopping
+      </Button>
+
+      <h1 className="text-4xl font-extrabold text-stone-800 mb-8 text-center">Your Shopping Cart</h1>
+
+      {itemCount === 0 ? (
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-lg mx-auto">
+          <Frown className="h-16 w-16 text-stone-400 mx-auto mb-4" />
+          <p className="text-xl text-stone-600 font-medium mb-4">Your cart is currently empty.</p>
+          <p className="text-stone-500 mb-6">Looks like you haven't added anything yet. Start browsing our amazing products!</p>
+          <Button onClick={() => onNavigate('home')} className="py-2.5 px-6">
+            <ShoppingCart className="h-5 w-5 mr-2" /> Start Shopping
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            {cartItems.map((item) => (
+              <CartItem
+                key={item.id}
+                item={item}
+                onUpdateQuantity={updateQuantity}
+                onRemove={removeFromCart}
+              />
+            ))}
+          </div>
+          <div className="lg:col-span-1">
+            <CartSummary onNavigate={onNavigate} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CartPage;
+```
+</boltAction>
+<boltAction type="file" filePath="src/pages/AuthPage.tsx">
+```typescript
+import React, { useState } from 'react';
+import LoginForm from '../components/auth/LoginForm';
+import RegisterForm from '../components/auth/RegisterForm';
+import { Page } from '../types';
+
+interface AuthPageProps {
+  onAuthSuccess: () => void;
+  onNavigate: (page: Page) => void;
+}
+
+const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess, onNavigate }) => {
+  const [isLoginView, setIsLoginView] = useState(true);
+
+  const handleAuthSuccess = () => {
+    onAuthSuccess();
+    onNavigate('home'); // Redirect to home after successful auth
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-stone-100 p-4">
+      <div className="bg-white rounded-xl shadow-2xl p-8 md:p-10 w-full max-w-md">
+        <h1 className="text-4xl font-extrabold text-center text-orange-600 mb-8">
+          {isLoginView ? 'Welcome Back!' : 'Join ZeptoMart!'}
+        </h1>
+
+        {isLoginView ? (
+          <LoginForm onLoginSuccess={handleAuthSuccess} onNavigate={() => setIsLoginView(false)} />
+        ) : (
+          <RegisterForm onRegisterSuccess={handleAuthSuccess} onNavigate={() => setIsLoginView(true)} />
+        )}
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setIsLoginView(!isLoginView)}
+            className="text-sm text-stone-600 hover:text-orange-600 font-medium transition-colors"
+          >
+            {isLoginView ? 'New to ZeptoMart? Create an account' : 'Already have an account? Login'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AuthPage;
+```
+</boltAction>
+<boltAction type="file" filePath="src/pages/CheckoutPage.tsx">
+```typescript
+import React, { useState } from 'react';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { ArrowLeft, CreditCard, MapPin, Receipt, CheckCircle } from 'lucide-react';
+import { Page } from '../types';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+
+interface CheckoutPageProps {
+  onNavigate: (page: Page) => void;
+}
+
+const CheckoutPage: React.FC<CheckoutPageProps> = ({ onNavigate }) => {
+  const { cartItems, cartTotal, clearCart } = useCart();
+  const { user } = useAuth();
+  const [address, setAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center text-stone-600">
+        <h2 className="text-3xl font-bold mb-4">Your cart is empty!</h2>
+        <p className="mb-6">Please add items to your cart before proceeding to checkout.</p>
+        <Button onClick={() => onNavigate('home')}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Shopping
+        </Button>
+      </div>
+    );
+  }
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    // Basic validation
+    if (!address || !paymentMethod) {
+      setError('Please fill in all required fields.');
+      setLoading(false);
+      return;
+    }
+
+    if (paymentMethod === 'card' && (!cardNumber || !expiryDate || !cvv)) {
+      setError('Please provide complete card details.');
+      setLoading(false);
+      return;
+    }
+
+    // Simulate API call for placing an order
+    try {
+      // In a real application, you'd send this data to a backend
+      // and integrate with a payment gateway.
+      console.log('Placing order with:', {
+        user: user?.id,
+        cartItems,
+        total: cartTotal,
+        address,
+        paymentMethod,
+        // Card details would be tokenized and sent securely, not directly
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate network request
+
+      clearCart(); // Clear cart after successful order
+      onNavigate('orderConfirmation'); // Navigate to confirmation page
+    } catch (err) {
+      setError('Failed to place order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <Button variant="ghost" onClick={() => onNavigate('cart')} className="mb-6 text-stone-600 hover:text-orange-600">
+        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Cart
+      </Button>
+
+      <h1 className="text-4xl font-extrabold text-stone-800 mb-8 text-center">Checkout</h1>
+
+      <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8 bg-white rounded-xl shadow-lg p-6 md:p-8">
+          {/* Shipping Address */}
+          <div>
+            <h2 className="text-2xl font-bold text-stone-800 mb-4 flex items-center">
+              <MapPin className="h-6 w-6 mr-3 text-orange-600" /> Shipping Address
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="address" className="block text-sm font-medium text-stone-700 mb-1">
+                  Full Address
+                </label>
+                <Input
+                  id="address"
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Street, City, State, Zip Code"
+                  required
+                  className="h-12"
+                />
+              </div>
+              {/* Add more address fields if needed (e.g., city, state, zip) */}
+            </div>
+          </div>
+
+          {/* Payment Method */}
+          <div>
+            <h2 className="text-2xl font-bold text-stone-800 mb-4 flex items-center">
+              <CreditCard className="h-6 w-6 mr-3 text-orange-600" /> Payment Method
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={paymentMethod === 'card'}
+                    onChange={() => setPaymentMethod('card')}
+                    className="form-radio h-5 w-5 text-orange-600"
+                  />
+                  <span className="ml-2 text-stone-700 font-medium">Credit/Debit Card</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cod"
+                    checked={paymentMethod === 'cod'}
+                    onChange={() => setPaymentMethod('cod')}
+                    className="form-radio h-5 w-5 text-orange-600"
+                  />
+                  <span className="ml-2 text-stone-700 font-medium">Cash on Delivery</span>
+                </label>
+              </div>
+
+              {paymentMethod === 'card' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label htmlFor="cardNumber" className="block text-sm font-medium text-stone-700 mb-1">
+                      Card Number
+                    </
+

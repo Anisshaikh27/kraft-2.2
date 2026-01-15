@@ -1,0 +1,1747 @@
+"Could you please assist in creating a comprehensive React Vite e-commerce website, similar to Zepto, that incorporates basic functionalities, including but not limited to user authentication, product catalog, shopping cart, payment gateway integration, and order management, to provide a seamless user experience"
+
+Okay, I will create a comprehensive React Vite e-commerce website with a beautiful, non-cookie-cutter design, incorporating user authentication, product catalog, shopping cart, and a simulated payment/order management flow. I will use JSX with Tailwind CSS, React hooks, and Lucide React for icons, as requested.
+
+First, I need to add `react-router-dom` for navigation.
+
+<boltAction type="tool_code" filePath="package.json">
+```json
+{
+  "name": "vite-react-typescript-starter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^0.344.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.25.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.1",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@types/react-router-dom": "^5.3.3",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^9.9.1",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.11",
+    "globals": "^15.9.0",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.3.0",
+    "vite": "^5.4.2"
+  }
+}
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/main.tsx">
+```tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext.tsx';
+import { CartProvider } from './context/CartContext.tsx';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <AuthProvider>
+        <CartProvider>
+          <App />
+        </CartProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  </StrictMode>
+);
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/App.tsx">
+```tsx
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import Layout from './components/layout/Layout.tsx';
+import HomePage from './pages/HomePage.tsx';
+import ProductListingPage from './pages/ProductListingPage.tsx';
+import ProductDetailPage from './pages/ProductDetailPage.tsx';
+import CartPage from './pages/CartPage.tsx';
+import CheckoutPage from './pages/CheckoutPage.tsx';
+import LoginPage from './pages/LoginPage.tsx';
+import RegisterPage from './pages/RegisterPage.tsx';
+import ProfilePage from './pages/ProfilePage.tsx';
+import NotFoundPage from './pages/NotFoundPage.tsx';
+import ProtectedRoute from './components/common/ProtectedRoute.tsx';
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<HomePage />} />
+        <Route path="products" element={<ProductListingPage />} />
+        <Route path="products/:id" element={<ProductDetailPage />} />
+        <Route path="cart" element={<CartPage />} />
+        <Route path="login" element={<LoginPage />} />
+        <Route path="register" element={<RegisterPage />} />
+
+        {/* Protected Routes */}
+        <Route
+          path="checkout"
+          element={
+            <ProtectedRoute>
+              <CheckoutPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch-all for 404 */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
+  );
+}
+
+export default App;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/types/index.d.ts">
+```tsx
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  category: string;
+  rating?: number;
+  stock: number;
+}
+
+export interface CartItem extends Product {
+  quantity: number;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
+
+export interface CartContextType {
+  cartItems: CartItem[];
+  addToCart: (product: Product, quantity: number) => void;
+  removeFromCart: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
+  clearCart: () => void;
+  getTotalItems: () => number;
+  getTotalPrice: () => number;
+}
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/utils/constants.ts">
+```tsx
+import { Product } from '../types';
+
+export const DUMMY_PRODUCTS: Product[] = [
+  {
+    id: '1',
+    name: 'Fresh Organic Apples',
+    description:
+      'Crisp and juicy organic apples, perfect for snacking or baking. Sourced from local farms.',
+    price: 3.99,
+    imageUrl:
+      'https://images.unsplash.com/photo-1579613832107-5509616d0041?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Fruits',
+    rating: 4.8,
+    stock: 50,
+  },
+  {
+    id: '2',
+    name: 'Farm Fresh Bananas',
+    description:
+      'Naturally sweet and potassium-rich bananas. Great for smoothies, snacks, or energy boosts.',
+    price: 1.29,
+    imageUrl:
+      'https://images.unsplash.com/photo-1571168137321-c3b6522c070c?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Fruits',
+    rating: 4.5,
+    stock: 100,
+  },
+  {
+    id: '3',
+    name: 'Garden Grown Broccoli',
+    description:
+      'Nutrient-packed broccoli florets, ideal for steaming, stir-frying, or roasting. Fresh from the garden.',
+    price: 2.49,
+    imageUrl:
+      'https://images.unsplash.com/photo-1582234372722-ae78e788a703?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Vegetables',
+    rating: 4.7,
+    stock: 75,
+  },
+  {
+    id: '4',
+    name: 'Artisan Sourdough Bread',
+    description:
+      'Hand-crafted sourdough bread with a perfect crust and chewy interior. Baked fresh daily.',
+    price: 5.99,
+    imageUrl:
+      'https://images.unsplash.com/photo-1555567389-130f14643c72?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Bakery',
+    rating: 4.9,
+    stock: 30,
+  },
+  {
+    id: '5',
+    name: 'Premium Organic Milk',
+    description:
+      'Fresh, hormone-free organic milk from pasture-raised cows. Rich in calcium and vitamins.',
+    price: 4.79,
+    imageUrl:
+      'https://images.unsplash.com/photo-1606787968603-750172e259b3?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Dairy',
+    rating: 4.6,
+    stock: 40,
+  },
+  {
+    id: '6',
+    name: 'Spiced Indian Lentils',
+    description:
+      'A flavorful and hearty blend of Indian spices and lentils, ready to cook. A great source of protein.',
+    price: 3.49,
+    imageUrl:
+      'https://images.unsplash.com/photo-1603569922240-b6c8605330a8?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Pantry',
+    rating: 4.4,
+    stock: 60,
+  },
+  {
+    id: '7',
+    name: 'Assorted Gourmet Cheese',
+    description:
+      'A selection of fine gourmet cheeses, perfect for a charcuterie board or a special occasion.',
+    price: 12.99,
+    imageUrl:
+      'https://images.unsplash.com/photo-1542838132-92c42e92c2a4?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Dairy',
+    rating: 4.9,
+    stock: 20,
+  },
+  {
+    id: '8',
+    name: 'Freshly Baked Croissants',
+    description:
+      'Flaky, buttery croissants baked fresh every morning. A delightful treat for breakfast.',
+    price: 2.79,
+    imageUrl:
+      'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    category: 'Bakery',
+    rating: 4.7,
+    stock: 35,
+  },
+];
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/context/AuthContext.tsx">
+```tsx
+import React, {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useEffect,
+} from 'react';
+import { AuthContextType, User } from '../types';
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(() => {
+    // Initialize user from localStorage
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+
+  useEffect(() => {
+    // Persist user to localStorage whenever it changes
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    // Simulate API call for login
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        if (email === 'user@example.com' && password === 'password') {
+          const dummyUser: User = {
+            id: '1',
+            email: 'user@example.com',
+            name: 'Demo User',
+          };
+          setUser(dummyUser);
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      }, 500);
+    });
+  };
+
+  const register = async (
+    name: string,
+    email: string,
+    password: string
+  ): Promise<boolean> => {
+    // Simulate API call for registration
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // In a real app, you'd check for existing users, hash passwords, etc.
+        const newUser: User = {
+          id: String(Date.now()), // Simple unique ID
+          email,
+          name,
+        };
+        setUser(newUser);
+        resolve(true);
+      }, 500);
+    });
+  };
+
+  const logout = () => {
+    setUser(null);
+  };
+
+  const isAuthenticated = !!user;
+
+  const value = {
+    user,
+    login,
+    register,
+    logout,
+    isAuthenticated,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/context/CartContext.tsx">
+```tsx
+import React,
+  {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useEffect,
+} from 'react';
+import { CartContextType, CartItem, Product } from '../types';
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export const CartProvider = ({ children }: { children: ReactNode }) => {
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    // Initialize cart from localStorage
+    const storedCart = localStorage.getItem('cartItems');
+    return storedCart ? JSON.parse(storedCart) : [];
+  });
+
+  useEffect(() => {
+    // Persist cart to localStorage whenever it changes
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  const addToCart = (product: Product, quantity: number) => {
+    setCartItems((prevItems) => {
+      const existingItem = prevItems.find((item) => item.id === product.id);
+      if (existingItem) {
+        return prevItems.map((item) =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      } else {
+        return [...prevItems, { ...product, quantity }];
+      }
+    });
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCartItems((prevItems) =>
+      prevItems.filter((item) => item.id !== productId)
+    );
+  };
+
+  const updateQuantity = (productId: string, quantity: number) => {
+    setCartItems((prevItems) =>
+      prevItems
+        .map((item) =>
+          item.id === productId ? { ...item, quantity: Math.max(1, quantity) } : item
+        )
+        .filter((item) => item.quantity > 0) // Remove if quantity becomes 0
+    );
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
+  const getTotalItems = () => {
+    return cartItems.reduce((total, item) => total + item.quantity, 0);
+  };
+
+  const getTotalPrice = () => {
+    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+  };
+
+  const value = {
+    cartItems,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    getTotalItems,
+    getTotalPrice,
+  };
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+};
+
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (context === undefined) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+};
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/components/common/Button.tsx">
+```tsx
+import React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '../../utils/cn'; // Utility for combining class names
+
+// Utility for combining class names (similar to clsx)
+// src/utils/cn.ts (create this file)
+// export function cn(...inputs: ClassValue[]) {
+//   return twMerge(clsx(inputs))
+// }
+
+const buttonVariants = cva(
+  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  {
+    variants: {
+      variant: {
+        default:
+          'bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:ring-indigo-500',
+        outline:
+          'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus-visible:ring-gray-400',
+        ghost: 'hover:bg-gray-100 text-gray-700 focus-visible:ring-gray-400',
+        link: 'text-indigo-600 underline-offset-4 hover:underline focus-visible:ring-indigo-500',
+        destructive:
+          'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500',
+      },
+      size: {
+        default: 'h-10 px-4 py-2',
+        sm: 'h-9 px-3',
+        lg: 'h-11 px-8',
+        icon: 'h-10 w-10',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  }
+);
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    return (
+      <button
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Button.displayName = 'Button';
+
+export default Button;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/components/common/Input.tsx">
+```tsx
+import React from 'react';
+import { cn } from '../../utils/cn';
+
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        className={cn(
+          'flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Input.displayName = 'Input';
+
+export default Input;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/components/common/ProductCard.tsx">
+```tsx
+import React from 'react';
+import { Product } from '../../types';
+import Button from './Button';
+import { ShoppingCart, Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
+
+interface ProductCardProps {
+  product: Product;
+}
+
+const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+  const { addToCart } = useCart();
+
+  const handleAddToCart = () => {
+    addToCart(product, 1);
+  };
+
+  return (
+    <div className="group relative bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col">
+      <Link to={`/products/${product.id}`} className="block">
+        <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden bg-gray-100 p-4">
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="h-48 w-full object-contain object-center group-hover:scale-105 transition-transform duration-300 ease-in-out"
+            loading="lazy"
+          />
+        </div>
+        <div className="p-4 flex-grow flex flex-col">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
+            {product.name}
+          </h3>
+          <p className="text-sm text-gray-500 mb-2 line-clamp-2">
+            {product.description}
+          </p>
+          <div className="flex items-center justify-between mt-auto pt-2">
+            <p className="text-xl font-bold text-indigo-600">
+              ${product.price.toFixed(2)}
+            </p>
+            {product.rating && (
+              <div className="flex items-center text-yellow-500 text-sm">
+                <Star className="h-4 w-4 fill-yellow-500 mr-1" />
+                <span>{product.rating.toFixed(1)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </Link>
+      <div className="p-4 border-t border-gray-100">
+        <Button
+          onClick={handleAddToCart}
+          className="w-full"
+          size="lg"
+          aria-label={`Add ${product.name} to cart`}
+        >
+          <ShoppingCart className="h-5 w-5 mr-2" />
+          Add to Cart
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default ProductCard;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/components/common/ProtectedRoute.tsx">
+```tsx
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export default ProtectedRoute;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/components/common/Spinner.tsx">
+```tsx
+import React from 'react';
+
+const Spinner: React.FC = () => {
+  return (
+    <div className="flex items-center justify-center">
+      <div
+        className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-indigo-600 motion-reduce:animate-[spin_1.5s_linear_infinite]"
+        role="status"
+      >
+        <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+          Loading...
+        </span>
+      </div>
+    </div>
+  );
+};
+
+export default Spinner;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/components/layout/Footer.tsx">
+```tsx
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { ShoppingBag } from 'lucide-react';
+
+const Footer: React.FC = () => {
+  return (
+    <footer className="bg-gray-900 text-gray-300 py-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="col-span-1 md:col-span-2">
+            <Link to="/" className="flex items-center text-white text-2xl font-bold mb-4">
+              <ShoppingBag className="h-8 w-8 mr-2 text-indigo-400" />
+              QuickMart
+            </Link>
+            <p className="text-gray-400 text-sm leading-relaxed max-w-md">
+              Your daily dose of fresh groceries delivered right to your doorstep.
+              Quality, convenience, and value – all in one place.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link to="/products" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Shop All
+                </Link>
+              </li>
+              <li>
+                <Link to="/cart" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Cart
+                </Link>
+              </li>
+              <li>
+                <Link to="/profile" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  My Account
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-lg font-semibold text-white mb-4">Support</h4>
+            <ul className="space-y-2">
+              <li>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Contact Us
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  FAQs
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Shipping & Returns
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Privacy Policy
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-800 mt-10 pt-8 text-center text-gray-500 text-sm">
+          <p>&copy; {new Date().getFullYear()} QuickMart. All rights reserved.</p>
+          <p className="mt-2">Designed with <span className="text-red-500">❤️</span> by Bolt</p>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/components/layout/Header.tsx">
+```tsx
+import React from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { ShoppingBag, User, ShoppingCart, LogOut, LogIn, UserPlus } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
+import Button from '../common/Button';
+
+const Header: React.FC = () => {
+  const { isAuthenticated, logout, user } = useAuth();
+  const { getTotalItems } = useCart();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const totalCartItems = getTotalItems();
+
+  return (
+    <header className="bg-white shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        {/* Logo */}
+        <Link to="/" className="flex items-center text-gray-900 text-2xl font-bold">
+          <ShoppingBag className="h-8 w-8 mr-2 text-indigo-600" />
+          QuickMart
+        </Link>
+
+        {/* Navigation */}
+        <nav className="hidden md:flex space-x-8">
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              `text-lg font-medium ${isActive ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'} transition-colors duration-200`
+            }
+          >
+            Home
+          </NavLink>
+          <NavLink
+            to="/products"
+            className={({ isActive }) =>
+              `text-lg font-medium ${isActive ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'} transition-colors duration-200`
+            }
+          >
+            Shop
+          </NavLink>
+        </nav>
+
+        {/* User Actions */}
+        <div className="flex items-center space-x-4">
+          {isAuthenticated ? (
+            <>
+              <NavLink
+                to="/profile"
+                className="flex items-center text-gray-700 hover:text-indigo-600 transition-colors duration-200 group"
+                title="My Profile"
+              >
+                <User className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+                <span className="hidden sm:inline ml-2 font-medium">{user?.name || 'Profile'}</span>
+              </NavLink>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="text-gray-700 hover:text-red-600"
+                title="Logout"
+              >
+                <LogOut className="h-6 w-6" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <NavLink
+                to="/login"
+                className="flex items-center text-gray-700 hover:text-indigo-600 transition-colors duration-200 group"
+                title="Login"
+              >
+                <LogIn className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+                <span className="hidden sm:inline ml-2 font-medium">Login</span>
+              </NavLink>
+              <NavLink
+                to="/register"
+                className="hidden md:flex items-center text-gray-700 hover:text-indigo-600 transition-colors duration-200 group"
+                title="Register"
+              >
+                <UserPlus className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
+                <span className="ml-2 font-medium">Register</span>
+              </NavLink>
+            </>
+          )}
+
+          <NavLink
+            to="/cart"
+            className="relative flex items-center text-gray-700 hover:text-indigo-600 transition-colors duration-200 group"
+            title="View Cart"
+          >
+            <ShoppingCart className="h-7 w-7 group-hover:scale-110 transition-transform duration-200" />
+            {totalCartItems > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                {totalCartItems}
+              </span>
+            )}
+            <span className="sr-only">Items in cart: {totalCartItems}</span>
+          </NavLink>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Header;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/components/layout/Layout.tsx">
+```tsx
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import Header from './Header';
+import Footer from './Footer';
+
+const Layout: React.FC = () => {
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-grow">
+        <Outlet />
+      </main>
+      <Footer />
+    </div>
+  );
+};
+
+export default Layout;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/CartPage.tsx">
+```tsx
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
+import { Trash2, Plus, Minus } from 'lucide-react';
+import Button from '../components/common/Button';
+
+const CartPage: React.FC = () => {
+  const { cartItems, removeFromCart, updateQuantity, getTotalPrice } = useCart();
+  const navigate = useNavigate();
+
+  const handleUpdateQuantity = (productId: string, newQuantity: number) => {
+    updateQuantity(productId, newQuantity);
+  };
+
+  const handleRemoveItem = (productId: string) => {
+    removeFromCart(productId);
+  };
+
+  const handleCheckout = () => {
+    navigate('/checkout');
+  };
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center min-h-[calc(100vh-200px)] flex flex-col items-center justify-center">
+        <ShoppingCart className="h-24 w-24 text-indigo-400 mb-6" />
+        <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Your cart is empty!</h2>
+        <p className="text-lg text-gray-600 mb-8">
+          Looks like you haven't added anything to your cart yet. Start shopping to fill it up!
+        </p>
+        <Button onClick={() => navigate('/products')} className="px-8 py-3 text-lg">
+          Start Shopping
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">Your Shopping Cart</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Cart Items List */}
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+          <div className="divide-y divide-gray-200">
+            {cartItems.map((item) => (
+              <div key={item.id} className="flex flex-col sm:flex-row items-center py-4 first:pt-0 last:pb-0">
+                <Link to={`/products/${item.id}`} className="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 mr-4">
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="w-full h-full object-contain rounded-md border border-gray-100"
+                  />
+                </Link>
+                <div className="flex-grow mt-4 sm:mt-0 text-center sm:text-left">
+                  <Link to={`/products/${item.id}`} className="text-xl font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
+                    {item.name}
+                  </Link>
+                  <p className="text-gray-600 text-sm mt-1">${item.price.toFixed(2)} each</p>
+                  <div className="flex items-center justify-center sm:justify-start mt-3 space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                      disabled={item.quantity <= 1}
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="text-lg font-medium w-8 text-center">{item.quantity}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                      aria-label="Increase quantity"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="ml-4"
+                      aria-label={`Remove ${item.name} from cart`}
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex-shrink-0 mt-4 sm:mt-0 text-right">
+                  <p className="text-xl font-bold text-indigo-600">${(item.price * item.quantity).toFixed(2)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Order Summary */}
+        <div className="lg:col-span-1 bg-white rounded-lg shadow-md p-6 h-fit sticky top-24">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-4">Order Summary</h2>
+          <div className="flex justify-between items-center text-lg text-gray-700 mb-3">
+            <span>Subtotal:</span>
+            <span>${getTotalPrice().toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center text-lg text-gray-700 mb-3">
+            <span>Shipping:</span>
+            <span>$5.00</span> {/* Flat rate shipping */}
+          </div>
+          <div className="flex justify-between items-center text-xl font-bold text-gray-900 border-t pt-4 mt-4">
+            <span>Total:</span>
+            <span>${(getTotalPrice() + 5).toFixed(2)}</span>
+          </div>
+          <Button onClick={handleCheckout} className="w-full mt-8 py-3 text-lg">
+            Proceed to Checkout
+          </Button>
+          <Link to="/products" className="block text-center mt-4 text-indigo-600 hover:underline">
+            Continue Shopping
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CartPage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/CheckoutPage.tsx">
+```tsx
+import React, { useState } from 'react';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import Button from '../components/common/Button';
+import Input from '../components/common/Input';
+import { useNavigate } from 'react-router-dom';
+import { CreditCard, MapPin, CheckCircle } from 'lucide-react';
+
+const CheckoutPage: React.FC = () => {
+  const { cartItems, getTotalPrice, clearCart } = useCart();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const [shippingAddress, setShippingAddress] = useState({
+    fullName: user?.name || '',
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: 'USA',
+  });
+  const [paymentDetails, setPaymentDetails] = useState({
+    cardName: '',
+    cardNumber: '',
+    expiry: '',
+    cvv: '',
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState(false);
+
+  const subtotal = getTotalPrice();
+  const shippingCost = 5.00; // Flat rate
+  const total = subtotal + shippingCost;
+
+  const handleShippingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setShippingAddress((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPaymentDetails((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmitOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+
+    // Simulate payment processing and order creation
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // In a real application, you'd send this data to your backend
+    console.log('Order Details:', {
+      user: user?.id,
+      cartItems,
+      shippingAddress,
+      paymentDetails: { ...paymentDetails, cardNumber: '**** **** **** ' + paymentDetails.cardNumber.slice(-4) }, // Mask card number
+      total,
+    });
+
+    setIsProcessing(false);
+    setOrderPlaced(true);
+    clearCart(); // Clear cart after successful order
+  };
+
+  if (orderPlaced) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center min-h-[calc(100vh-200px)] flex flex-col items-center justify-center">
+        <CheckCircle className="h-24 w-24 text-green-500 mb-6 animate-bounce" />
+        <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Order Placed Successfully!</h2>
+        <p className="text-lg text-gray-600 mb-8">
+          Thank you for your purchase. Your order has been confirmed and will be processed shortly.
+        </p>
+        <div className="flex space-x-4">
+          <Button onClick={() => navigate('/profile')} className="px-8 py-3 text-lg">
+            View Order History
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/products')} className="px-8 py-3 text-lg">
+            Continue Shopping
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0 && !orderPlaced) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center min-h-[calc(100vh-200px)] flex flex-col items-center justify-center">
+        <ShoppingCart className="h-24 w-24 text-gray-400 mb-6" />
+        <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Your cart is empty!</h2>
+        <p className="text-lg text-gray-600 mb-8">
+          You need to add items to your cart before checking out.
+        </p>
+        <Button onClick={() => navigate('/products')} className="px-8 py-3 text-lg">
+          Start Shopping
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">Checkout</h1>
+
+      <form onSubmit={handleSubmitOrder} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Shipping Address */}
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+            <MapPin className="h-6 w-6 mr-3 text-indigo-600" /> Shipping Information
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+                Full Name
+              </label>
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                value={shippingAddress.fullName}
+                onChange={handleShippingChange}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="address1" className="block text-sm font-medium text-gray-700 mb-1">
+                Address Line 1
+              </label>
+              <Input
+                id="address1"
+                name="address1"
+                type="text"
+                value={shippingAddress.address1}
+                onChange={handleShippingChange}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="address2" className="block text-sm font-medium text-gray-700 mb-1">
+                Address Line 2 (Optional)
+              </label>
+              <Input
+                id="address2"
+                name="address2"
+                type="text"
+                value={shippingAddress.address2}
+                onChange={handleShippingChange}
+              />
+            </div>
+            <div>
+              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                City
+              </label>
+              <Input
+                id="city"
+                name="city"
+                type="text"
+                value={shippingAddress.city}
+                onChange={handleShippingChange}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                State / Province
+              </label>
+              <Input
+                id="state"
+                name="state"
+                type="text"
+                value={shippingAddress.state}
+                onChange={handleShippingChange}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="zip" className="block text-sm font-medium text-gray-700 mb-1">
+                Zip / Postal Code
+              </label>
+              <Input
+                id="zip"
+                name="zip"
+                type="text"
+                value={shippingAddress.zip}
+                onChange={handleShippingChange}
+                required
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+                Country
+              </label>
+              <Input
+                id="country"
+                name="country"
+                type="text"
+                value={shippingAddress.country}
+                onChange={handleShippingChange}
+                required
+                disabled
+              />
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-900 mt-10 mb-6 flex items-center">
+            <CreditCard className="h-6 w-6 mr-3 text-indigo-600" /> Payment Information
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label htmlFor="cardName" className="block text-sm font-medium text-gray-700 mb-1">
+                Name on Card
+              </label>
+              <Input
+                id="cardName"
+                name="cardName"
+                type="text"
+                value={paymentDetails.cardName}
+                onChange={handlePaymentChange}
+                required
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                Card Number
+              </label>
+              <Input
+                id="cardNumber"
+                name="cardNumber"
+                type="text"
+                value={paymentDetails.cardNumber}
+                onChange={handlePaymentChange}
+                maxLength={16}
+                pattern="\d{16}"
+                placeholder="XXXX XXXX XXXX XXXX"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="expiry" className="block text-sm font-medium text-gray-700 mb-1">
+                Expiration Date (MM/YY)
+              </label>
+              <Input
+                id="expiry"
+                name="expiry"
+                type="text"
+                value={paymentDetails.expiry}
+                onChange={handlePaymentChange}
+                maxLength={5}
+                pattern="(0[1-9]|1[0-2])\/\d{2}"
+                placeholder="MM/YY"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="cvv" className="block text-sm font-medium text-gray-700 mb-1">
+                CVV
+              </label>
+              <Input
+                id="cvv"
+                name="cvv"
+                type="text"
+                value={paymentDetails.cvv}
+                onChange={handlePaymentChange}
+                maxLength={3}
+                pattern="\d{3}"
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Order Summary */}
+        <div className="lg:col-span-1 bg-white rounded-lg shadow-md p-6 h-fit sticky top-24">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-4">Order Summary</h2>
+          <div className="space-y-2 mb-6">
+            {cartItems.map((item) => (
+              <div key={item.id} className="flex justify-between text-gray-700 text-sm">
+                <span>{item.name} ({item.quantity})</span>
+                <span>${(item.price * item.quantity).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between items-center text-lg text-gray-700 mb-3">
+            <span>Subtotal:</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center text-lg text-gray-700 mb-3">
+            <span>Shipping:</span>
+            <span>${shippingCost.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center text-xl font-bold text-gray-900 border-t pt-4 mt-4">
+            <span>Total:</span>
+            <span>${total.toFixed(2)}</span>
+          </div>
+          <Button type="submit" className="w-full mt-8 py-3 text-lg" disabled={isProcessing}>
+            {isProcessing ? 'Processing...' : 'Place Order'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default CheckoutPage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/HomePage.tsx">
+```tsx
+import React from 'react';
+import { Link } from 'react-router-dom';
+import Button from '../components/common/Button';
+import ProductCard from '../components/common/ProductCard';
+import { DUMMY_PRODUCTS } from '../utils/constants';
+import { Truck, Award, Leaf } from 'lucide-react';
+
+const HomePage: React.FC = () => {
+  const featuredProducts = DUMMY_PRODUCTS.slice(0, 4); // Display first 4 products as featured
+
+  return (
+    <div className="bg-gray-50">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-20 md:py-32 overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1542838132-92c42e92c2a4?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          alt="Fresh groceries background"
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+          aria-hidden="true"
+        />
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+          <h1 className="text-5xl md:text-6xl font-extrabold leading-tight mb-6 drop-shadow-lg">
+            Freshness Delivered, Daily.
+          </h1>
+          <p className="text-xl md:text-2xl mb-10 max-w-2xl mx-auto opacity-90">
+            Your one-stop shop for organic produce, pantry staples, and gourmet delights.
+            Quality groceries, effortless shopping.
+          </p>
+          <Button asChild className="px-8 py-4 text-xl rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+            <Link to="/products">Shop Now</Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* Value Proposition Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-4xl font-extrabold text-gray-900 text-center mb-12">Why Choose QuickMart?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+            <div className="p-6 bg-gray-50 rounded-lg shadow-sm flex flex-col items-center">
+              <Truck className="h-16 w-16 text-indigo-600 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Fast & Reliable Delivery</h3>
+              <p className="text-gray-600">Get your groceries delivered fresh to your door, quickly and efficiently.</p>
+            </div>
+            <div className="p-6 bg-gray-50 rounded-lg shadow-sm flex flex-col items-center">
+              <Award className="h-16 w-16 text-indigo-600 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Premium Quality Products</h3>
+              <p className="text-gray-600">We source only the best, freshest ingredients from trusted suppliers.</p>
+            </div>
+            <div className="p-6 bg-gray-50 rounded-lg shadow-sm flex flex-col items-center">
+              <Leaf className="h-16 w-16 text-indigo-600 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Sustainable & Organic Choices</h3>
+              <p className="text-gray-600">Support eco-friendly farming with our wide range of organic options.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-4xl font-extrabold text-gray-900 text-center mb-12">Our Bestsellers</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+          <div className="text-center mt-12">
+            <Button asChild className="px-8 py-3 text-lg">
+              <Link to="/products">View All Products</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Call to Action Banner */}
+      <section className="bg-indigo-700 text-white py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-extrabold mb-4">Ready to Taste the Difference?</h2>
+          <p className="text-xl opacity-90 mb-8 max-w-3xl mx-auto">
+            Join thousands of satisfied customers and experience the convenience of QuickMart.
+          </p>
+          <Button asChild variant="outline" className="text-white border-white px-8 py-4 text-xl rounded-full hover:bg-white hover:text-indigo-700 transition-colors duration-300">
+            <Link to="/register">Create Account</Link>
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default HomePage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/LoginPage.tsx">
+```tsx
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import Button from '../components/common/Button';
+import Input from '../components/common/Input';
+import { LogIn as LogInIcon, ShoppingBag } from 'lucide-react';
+import Spinner from '../components/common/Spinner';
+
+const LoginPage: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const success = await login(email, password);
+    setLoading(false);
+
+    if (success) {
+      navigate('/profile'); // Redirect to profile or home on successful login
+    } else {
+      setError('Invalid email or password. Please try again.');
+    }
+  };
+
+  return (
+    <div className="min-h-[calc(100vh-100px)] flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
+        <div>
+          <Link to="/" className="flex justify-center items-center text-indigo-600 mb-6">
+            <ShoppingBag className="h-10 w-10 mr-2" />
+            <h2 className="text-3xl font-extrabold text-gray-900">QuickMart</h2>
+          </Link>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+              create a new account
+            </Link>
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+          <div>
+            <label htmlFor="email-address" className="sr-only">
+              Email address
+            </label>
+            <Input
+              id="email-address"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Email address (e.g., user@example.com)"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="password" className="sr-only">
+              Password
+            </label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Password (e.g., password)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                Remember me
+              </label>
+            </div>
+
+            <div className="text-sm">
+              <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
+                Forgot your password?
+              </a>
+            </div>
+          </div>
+
+          <div>
+            <Button
+              type="submit"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={loading}
+            >
+              {loading ? (
+                <Spinner />
+              ) : (
+                <>
+                  <span className="absolute left-0 inset-y-0 flex items-center pl-3">
+                    <LogInIcon className="h-5 w-5 text-indigo-300 group-hover:text-indigo-100" aria-hidden="true" />
+                  </span>
+                  Sign in
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default LoginPage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/NotFoundPage.tsx">
+```tsx
+import React from 'react';
+import { Link } from 'react-router-dom';
+import Button from '../components/common/Button';
+import { Frown } from 'lucide-react';
+
+const NotFoundPage: React.FC = () => {
+  return (
+    <div className="min-h-[calc(100vh-200px)] flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 text-center">
+      <Frown className="h-24 w-24 text-indigo-400 mb-6" />
+      <h1 className="text-6xl font-extrabold text-gray-900 mb-4">404</h1>
+      <h2 className="text-3xl font-bold text-gray-800 mb-4">Page Not Found</h2>
+      <p className="text-lg text-gray-600 mb-8 max-w-md">
+        Oops! The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
+      </p>
+      <Button asChild className="px-8 py-3 text-lg">
+        <Link to="/">Go to Homepage</Link>
+      </Button>
+    </div>
+  );
+};
+
+export default NotFoundPage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/ProductDetailPage.tsx">
+```tsx
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { DUMMY_PRODUCTS } from '../utils/constants';
+import Button from '../components/common/Button';
+import { ShoppingCart, Star, ArrowLeft } from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import Spinner from '../components/common/Spinner';
+import NotFoundPage from './NotFoundPage';
+
+const ProductDetailPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+
+  const [product, setProduct] = useState(DUMMY_PRODUCTS.find((p) => p.id === id));
+  const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate API call
+    setLoading(true);
+    const timer = setTimeout(() => {
+      setProduct(DUMMY_PRODUCTS.find((p) => p.id === id));
+      setLoading(false);
+    }, 500); // Simulate network delay
+    return () => clearTimeout(timer);
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return <NotFoundPage />;
+  }
+
+  const handleAddToCart = () => {
+    addToCart(product, quantity);
+    // Optionally, navigate to cart or show a success message
+    navigate('/cart');
+  };
+
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <Button variant="ghost" onClick={() => navigate(-1)} className="mb-8 flex items-center text-indigo-600 hover:text-indigo-700">
+        <ArrowLeft className="h-5 w-5 mr-2" /> Back to Products
+      </Button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 bg-white rounded-xl shadow-lg p-8">
+        {/* Product Image */}
+        <div className="flex justify-center items-center p-4 bg-gray-50 rounded-lg">
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="max-h-[500px] w-full object-contain rounded-lg"
+            loading="lazy"
+          />
+        </div>
+
+        {/* Product Details */}
+        <div className="flex flex-col justify-center">
+          <h1 className="text-5xl font-extrabold text-gray-900 mb-4 leading-tight">{product.name}</h1>
+          <p className="text-xl text-gray-600 mb-6">{product.description}</p>
+
+          <div className="flex items-center mb-6">
+            <span className="text-4xl font-bold text-indigo-600 mr-4">
+              ${product.price.toFixed(2)}
+            </span>
+            {product.rating && (
+              <div className="flex items-center text-yellow-500">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`h-6 w-6 ${i < Math.floor(product.rating || 0) ? 'fill-yellow-500' : 'stroke-yellow-500'}`}
+                  />
+                ))}
+                <span className="ml-2 text-gray-700 font-medium">{product.rating.toFixed(1)} ({Math.floor(Math.random() * 100) + 20} reviews)</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-4 mb-8">
+            <label htmlFor="quantity" className="text-lg font-medium text-gray-700">Quantity:</label>
+            <input
+              type="number"
+              id="quantity"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value)))}
+              className="w-20 p-2 border border-gray-300 rounded-md text-center text-lg focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <span className="text-gray-500 text-sm">({product.stock} in stock)</span>
+          </div>
+
+          <Button
+            onClick={handleAddToCart}
+            className="w-full sm:w-auto px-8 py-3 text-lg rounded-lg shadow-md hover:shadow-lg transition-all"
+            disabled={product.stock === 0}
+          >
+            <ShoppingCart className="h-6 w-6 mr-3" />
+            {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+          </Button>
+
+          {product.stock === 0 && (
+            <p className="mt-4 text-red-600 font-medium">This product is currently out of stock.</p>
+          )}
+
+          <div className="mt-8 border-t border-gray-200 pt-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Product Information</h3>
+            <ul className="list-disc list-inside text-gray-700 space-y-2">
+              <li>Category: <span className="font-medium">{product.category}</span></li>
+              <li>Weight: <span className="font-medium">Approx. 1 kg</span></li>
+              <li>Origin: <span className="font-medium">Local Farms</span></li>
+              <li>Storage: <span className="font-medium">Keep refrigerated for freshness</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProductDetailPage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/ProductListingPage.tsx">
+```tsx
+import React, { useState, useEffect } from 'react';
+import ProductCard from '../components/common/ProductCard';
+import { DUMMY_PRODUCTS } from '../utils/constants';
+import { Product } from '../types';
+import Spinner from '../components/common/Spinner';
+import Input from '../components/common/Input';
+import { Search } from 'lucide-react';
+
+const ProductListingPage: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const categories = ['All', ...new Set(DUMMY_PRODUCTS.map((p) => p.category))];
+
+  useEffect(() => {
+    setLoading(true);
+    // Simulate API call
+    const timer = setTimeout(() => {
+      setProducts(DUMMY_PRODUCTS);
+      setLoading(false);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-

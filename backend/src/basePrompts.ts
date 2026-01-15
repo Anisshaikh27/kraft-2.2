@@ -195,27 +195,36 @@ another file content
 </boltAction>
 </boltArtifact>
 
-RULES:
-1. ALWAYS use <boltArtifact> as the root wrapper
-2. ALWAYS use <boltAction type="file" filePath="..."> for each file
-3. Put the COMPLETE file content inside each <boltAction> tag
-4. Do NOT use markdown code blocks (no \`\`\`) inside <boltAction> tags
-5. For shell commands, use <boltAction type="shell">command here</boltAction>
+MANDATORY RULES - FOLLOW THESE EXACTLY:
+1. ALWAYS use <boltArtifact> as the ONLY root wrapper
+2. ALWAYS use type="file" (NEVER use type="tool_code")
+3. Use filePath attribute ONLY (NOT artifactPath)
+4. Put the COMPLETE, FULL file content inside <boltAction> tags
+5. Do NOT use markdown code blocks (\`\`\`) inside <boltAction> tags
+6. Do NOT truncate or use "Lines X omitted" - provide COMPLETE files
+7. For shell commands, use <boltAction type="shell">
 
-Example of CORRECT format:
-<boltArtifact id="zepto-app" title="Zepto Clone">
+⚠️ CRITICAL: App.tsx MUST ALWAYS BE INCLUDED
+- App.tsx is the main entry point for React apps
+- Without App.tsx, the application WILL NOT render
+- Always ensure App.tsx is PRESENT and COMPLETE
+
+FILE CONTENT RULES:
+- Provide the ENTIRE file content - NEVER truncate
+- No "..." or "// rest of code here" shortcuts
+- Complete all unfinished files
+
+✅ CORRECT FORMAT EXAMPLE:
+<boltArtifact id="ecommerce-app" title="E-Commerce App">
 <boltAction type="file" filePath="src/App.tsx">
 import React from 'react';
-function App() {
-  return <div>Hello</div>;
+export default function App() {
+  return <div>E-Commerce</div>;
 }
-export default App;
 </boltAction>
 </boltArtifact>
 
-Example of WRONG format (DO NOT DO THIS):
+❌ WRONG FORMAT (NEVER DO THIS):
 <boltArtifact artifactPath="src/App.tsx" />
-\`\`\`typescript
-code here
-\`\`\`
+<boltAction type="tool_code" filePath="...">
 `;

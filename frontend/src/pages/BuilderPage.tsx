@@ -43,7 +43,64 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
     "editor" | "chat" | "preview"
   >("editor");
 
-  // Handle file updates from editor
+  // Helper function to check if a file exists in the structure
+  const checkFileExists = (files: FileItem[], filePath: string): boolean => {
+    const parts = filePath.split("/").filter(Boolean);
+    let current = files;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      const folder = current.find((item: FileItem) => 
+        item.name === parts[i] && item.type === "folder"
+      );
+      if (!folder) return false;
+      current = folder.children || [];
+    }
+
+    const fileName = parts[parts.length - 1];
+    return current.some((item: FileItem) => 
+      item.name === fileName && item.type === "file"
+    );
+  };
+
+  // Helper function to add a file to the structure
+  const addFileToStructure = (baseFiles: FileItem[], filePath: string, content: string): FileItem[] => {
+    let updatedFiles = JSON.parse(JSON.stringify(baseFiles));
+    const parts = filePath.split("/").filter(Boolean);
+    let current = updatedFiles;
+
+    // Navigate/create folder structure
+    for (let i = 0; i < parts.length - 1; i++) {
+      const folderName = parts[i];
+      let folder = current.find((item: FileItem) => 
+        item.name === folderName && item.type === "folder"
+      );
+
+      if (!folder) {
+        folder = {
+          name: folderName,
+          type: "folder",
+          path: `/${parts.slice(0, i + 1).join("/")}`,
+          children: [],
+        };
+        current.push(folder);
+      }
+
+      current = folder.children || [];
+    }
+
+    // Add the file
+    const fileName = parts[parts.length - 1];
+    current.push({
+      name: fileName,
+      type: "file",
+      path: filePath,
+      content: content,
+    });
+
+    return updatedFiles;
+  };
+
+  // Helper function to merge files without async issues
   const handleCodeChange = (newCode: string) => {
     if (!selectedFile) return;
 
@@ -266,14 +323,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     setLoading(true);
     
     try {
-      // Create initial boilerplate files structure
+      // Create initial boilerplate files structure (WITHOUT App.tsx - AI will generate it)
       const initialBoilerplate: FileItem[] = [
         {
           name: "src",
           type: "folder",
           path: "/src",
           children: [
-            { name: "App.tsx", type: "file", path: "/src/App.tsx", content: "import React from 'react';\n\nexport default function App() {\n  return (\n    <div className=\"flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-500 to-purple-600\">\n      <div className=\"text-center\">\n        <h1 className=\"text-4xl font-bold text-white mb-4\">Welcome to Your App</h1>\n        <p className=\"text-xl text-blue-100\">Start prompting to generate your next feature</p>\n      </div>\n    </div>\n  );\n}" },
             { name: "main.tsx", type: "file", path: "/src/main.tsx", content: "import React from 'react';\nimport ReactDOM from 'react-dom/client';\nimport App from './App';\nimport './index.css';\n\nReactDOM.createRoot(document.getElementById('root')!).render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>,\n);" },
             { name: "index.css", type: "file", path: "/src/index.css", content: "@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody {\n  margin: 0;\n  padding: 0;\n  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;\n}" },
           ],
@@ -415,6 +471,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       
       // Merge AI-generated files with existing
       currentFiles = mergeFilesFromSteps(currentFiles, aiSteps);
+      
+      // ⚠️ CRITICAL: Ensure App.tsx exists (check if AI generated it)
+      const hasAppTsx = checkFileExists(currentFiles, "/src/App.tsx");
+      if (!hasAppTsx) {
+        // Add default App.tsx if AI didn't generate one
+        console.warn("App.tsx not found in AI response, adding default");
+        currentFiles = addFileToStructure(currentFiles, "/src/App.tsx", 
+          "import React from 'react';\n\nexport default function App() {\n  return (\n    <div className=\"flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-500 to-purple-600\">\n      <div className=\"text-center\">\n        <h1 className=\"text-4xl font-bold text-white mb-4\">Welcome to Your App</h1>\n        <p className=\"text-xl text-blue-100\">Start prompting to generate your next feature</p>\n      </div>\n    </div>\n  );\n}"
+        );
+      }
+      
       setFiles(currentFiles);
 
       // Mark all as completed
