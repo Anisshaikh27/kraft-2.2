@@ -1,0 +1,22 @@
+missing package in package.json 
+[plugin:vite:import-analysis] Failed to resolve import "tailwind-merge" from "src/utils/cn.ts". Does the file exist?
+/home/k03e2io1v3fx9wvj0vr8qd5q58o56n-fkdo/src/utils/cn.ts:2:24
+1  |  import { clsx } from "clsx";
+2  |  import { twMerge } from "tailwind-merge";
+   |                           ^
+3  |  export function cn(...inputs) {
+4  |    return twMerge(clsx(inputs));
+
+missing package in package.json 
+
+[plugin:vite:import-analysis] Failed to resolve import "class-variance-authority" from "src/components/common/Button.tsx". Does the file exist?
+/home/k03e2io1v3fx9wvj0vr8qd5q58o56n-fkdo/src/components/common/Button.tsx:2:39
+16 |  }
+17 |  import React from "react";
+18 |  import { cva } from "class-variance-authority";
+   |                       ^
+19 |  import { cn } from "../../utils/cn";
+20 |  const buttonVariants = cva(
+    at TransformPluginContext._formatError (file:///home/k03e2io1v3fx9wvj0vr8qd5q58o56n-fkdo/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49308:41)
+    at TransformPluginContext.error 
+

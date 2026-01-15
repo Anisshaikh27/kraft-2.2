@@ -1,0 +1,490 @@
+You got cut off. Continue exactly where you left off.
+
+IMPORTANT INSTRUCTIONS FOR CODE GENERATION:
+1. Use ONLY this exact XML format for responses:
+<boltAction type="file" filePath="path/to/file.ext">
+complete file content here (NO markdown code blocks)
+</boltAction>
+
+2. DO NOT generate:
+   - CartProvider imports or context files (app will provide these)
+   - External API calls or backend integrations
+   - Node.js/server code (only browser-compatible React code)
+
+3. For main.tsx, use this EXACT template:
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
+
+4. For all component imports, use relative paths like: "./Header.tsx"
+5. Only generate files that are actually referenced and used
+6. Use TailwindCSS for all styling
+
+<boltAction type="tool_code" filePath="src/pages/ProductListingPage.tsx">
+```tsx
+import React, { useState, useEffect } from 'react';
+import ProductCard from '../components/common/ProductCard';
+import { DUMMY_PRODUCTS } from '../utils/constants';
+import { Product } from '../types';
+import Spinner from '../components/common/Spinner';
+import Input from '../components/common/Input';
+import { Search } from 'lucide-react';
+
+const ProductListingPage: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const categories = ['All', ...new Set(DUMMY_PRODUCTS.map((p) => p.category))];
+
+  useEffect(() => {
+    setLoading(true);
+    // Simulate API call
+    const timer = setTimeout(() => {
+      setProducts(DUMMY_PRODUCTS);
+      setLoading(false);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">Our Fresh Products</h1>
+
+      {/* Filter and Search */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4">
+        <div className="relative w-full sm:w-1/2 lg:w-1/3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 border rounded-md w-full focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+
+        <div className="w-full sm:w-auto">
+          <label htmlFor="category-select" className="sr-only">
+            Select Category
+          </label>
+          <select
+            id="category-select"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="block w-full sm:w-48 p-2 border border-gray-300 rounded-md bg-white text-gray-900 shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="min-h-[400px] flex items-center justify-center">
+          <Spinner />
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="text-center py-16">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">No products found!</h2>
+          <p className="text-lg text-gray-600">Try adjusting your search or filters.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {filteredProducts.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProductListingPage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/ProfilePage.tsx">
+```tsx
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import Button from '../components/common/Button';
+import { User, Mail, LogOut, ShoppingBag, Edit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+const ProfilePage: React.FC = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [editing, setEditing] = useState(false); // For future implementation of profile editing
+  const [currentOrders] = useState([ // Dummy order data
+    {
+      id: 'ORD-001',
+      date: '2023-10-26',
+      total: 45.97,
+      status: 'Delivered',
+      items: [
+        { name: 'Fresh Organic Apples', quantity: 2, price: 3.99 },
+        { name: 'Artisan Sourdough Bread', quantity: 1, price: 5.99 },
+        { name: 'Premium Organic Milk', quantity: 1, price: 4.79 },
+      ],
+    },
+    {
+      id: 'ORD-002',
+      date: '2023-11-10',
+      total: 22.48,
+      status: 'Processing',
+      items: [
+        { name: 'Farm Fresh Bananas', quantity: 3, price: 1.29 },
+        { name: 'Garden Grown Broccoli', quantity: 1, price: 2.49 },
+      ],
+    },
+  ]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  if (!user) {
+    // This should ideally be caught by ProtectedRoute, but good for defensive coding
+    return (
+      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
+        <p className="text-lg text-gray-600">Please log in to view your profile.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">My Profile</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* User Information Card */}
+        <div className="lg:col-span-1 bg-white rounded-lg shadow-md p-6 h-fit sticky top-24">
+          <div className="flex flex-col items-center border-b pb-6 mb-6">
+            <div className="relative">
+              <div className="bg-indigo-100 text-indigo-600 rounded-full h-24 w-24 flex items-center justify-center text-5xl font-bold mb-4">
+                {user.name ? user.name.charAt(0).toUpperCase() : <User className="h-12 w-12" />}
+              </div>
+              {/* Future: Edit profile picture
+              <Button variant="ghost" size="icon" className="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow-md hover:bg-gray-50">
+                <Camera className="h-5 w-5 text-gray-600" />
+              </Button>
+              */}
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900">{user.name}</h2>
+            <p className="text-gray-600 flex items-center mt-2">
+              <Mail className="h-4 w-4 mr-2" /> {user.email}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-center"
+              onClick={() => setEditing(!editing)} // Placeholder for edit functionality
+            >
+              <Edit className="h-5 w-5 mr-2" /> Edit Profile
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full flex items-center justify-center"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5 mr-2" /> Logout
+            </Button>
+          </div>
+        </div>
+
+        {/* Order History */}
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center border-b pb-4">
+            <ShoppingBag className="h-6 w-6 mr-3 text-indigo-600" /> Order History
+          </h2>
+
+          {currentOrders.length === 0 ? (
+            <div className="text-center py-8 text-gray-600">
+              <p className="mb-4">You haven't placed any orders yet.</p>
+              <Button onClick={() => navigate('/products')}>Start Shopping</Button>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {currentOrders.map((order) => (
+                <div key={order.id} className="py-6 first:pt-0 last:pb-0">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-xl font-semibold text-gray-900">Order #{order.id}</h3>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        order.status === 'Delivered'
+                          ? 'bg-green-100 text-green-800'
+                          : order.status === 'Processing'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {order.status}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-2">Order Date: {order.date}</p>
+                  <p className="text-gray-800 font-bold text-lg mb-4">Total: ${order.total.toFixed(2)}</p>
+
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <h4 className="font-semibold text-gray-800 mb-2">Items:</h4>
+                    <ul className="space-y-1 text-sm text-gray-700">
+                      {order.items.map((item, index) => (
+                        <li key={index} className="flex justify-between">
+                          <span>{item.name} x {item.quantity}</span>
+                          <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <Button variant="link" className="mt-4 px-0">
+                    View Order Details
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProfilePage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/pages/RegisterPage.tsx">
+```tsx
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import Button from '../components/common/Button';
+import Input from '../components/common/Input';
+import { UserPlus, ShoppingBag } from 'lucide-react';
+import Spinner from '../components/common/Spinner';
+
+const RegisterPage: React.FC = () => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setLoading(false);
+      return;
+    }
+
+    const success = await register(name, email, password);
+    setLoading(false);
+
+    if (success) {
+      navigate('/profile'); // Redirect to profile or home on successful registration
+    } else {
+      setError('Registration failed. Please try again with a different email.');
+    }
+  };
+
+  return (
+    <div className="min-h-[calc(100vh-100px)] flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
+        <div>
+          <Link to="/" className="flex justify-center items-center text-indigo-600 mb-6">
+            <ShoppingBag className="h-10 w-10 mr-2" />
+            <h2 className="text-3xl font-extrabold text-gray-900">QuickMart</h2>
+          </Link>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Or{' '}
+            <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+              sign in to your existing account
+            </Link>
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+          <div>
+            <label htmlFor="name" className="sr-only">
+              Full Name
+            </label>
+            <Input
+              id="name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Full Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="email-address" className="sr-only">
+              Email address
+            </label>
+            <Input
+              id="email-address"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="password" className="sr-only">
+              Password
+            </label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="confirm-password" className="sr-only">
+              Confirm Password
+            </label>
+            <Input
+              id="confirm-password"
+              name="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Button
+              type="submit"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={loading}
+            >
+              {loading ? (
+                <Spinner />
+              ) : (
+                <>
+                  <span className="absolute left-0 inset-y-0 flex items-center pl-3">
+                    <UserPlus className="h-5 w-5 text-indigo-300 group-hover:text-indigo-100" aria-hidden="true" />
+                  </span>
+                  Register
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default RegisterPage;
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/utils/cn.ts">
+```tsx
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+</boltAction>
+<boltAction type="tool_code" filePath="tailwind.config.js">
+```javascript
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+```
+</boltAction>
+<boltAction type="tool_code" filePath="src/index.css">
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles or overrides can go here */
+body {
+  font-family: 'Inter', sans-serif;
+  @apply text-gray-800 bg-gray-50;
+}
+
+/* Optional: Scrollbar styling */
+/*
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+*/
+```
+</boltAction>
