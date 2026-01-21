@@ -37,20 +37,22 @@ export function Layout({ files }: LayoutPrompts) {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
-      <nav className="border-b border-gray-800 bg-gray-950">
+      <nav className="border-b border-gray-800 bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <Code2 className="w-8 h-8 text-indigo-500" />
-              <span className="ml-2 text-xl font-bold">Weblify</span>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+                <Code2 className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Kraft-2.2</span>
             </div>
-            <div
-              className="flex items-center gap-1 px-4 py-2 rounded-md bg-indigo-500 hover:bg-indigo-600"
+            <button
+              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl font-semibold"
               onClick={handleDownloadZip}
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-5 h-5" />
               Download
-            </div>
+            </button>
           </div>
         </div>
       </nav>

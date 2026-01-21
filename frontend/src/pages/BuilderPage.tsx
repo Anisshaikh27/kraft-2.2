@@ -42,6 +42,11 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
   const [activeTab, setActiveTab] = useState<
     "editor" | "chat" | "preview"
   >("editor");
+  const [splitViewMode, setSplitViewMode] = useState(true);
+  const [fullPreview, setFullPreview] = useState(false);
+  const [dividerPos, setDividerPos] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<"steps" | "files">("steps");
 
   // Helper function to check if a file exists in the structure
   const checkFileExists = (files: FileItem[], filePath: string): boolean => {
@@ -567,49 +572,252 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     init();
   }, []);
 
+  // Handle dragging divider for split view
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const container = document.getElementById("split-container");
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const newPos = ((e.clientX - rect.left) / rect.width) * 100;
+      // Constrain between 20% and 80%
+      if (newPos > 20 && newPos < 80) {
+        setDividerPos(newPos);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
   return (
-    <div className="flex-1 overflow-hidden">
-      <div className="h-full grid grid-cols-4 gap-6 p-6">
-        {/* Left Sidebar - Steps */}
-        <div className="col-span-1 space-y-6 overflow-auto">
-          <div className="max-h-[85vh] overflow-scroll">
-            <StepsList steps={steps} currentStep={1} onStepClick={() => {}} />
+    <div className="flex-1 overflow-hidden bg-gray-950">
+      {/* Full Preview Mode */}
+      {fullPreview ? (
+        <div className="h-screen w-screen flex flex-col">
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-700">
+            <h2 className="text-xl font-bold text-white">Full Preview</h2>
+            <button
+              onClick={() => setFullPreview(false)}
+              className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors"
+            >
+              Exit Full View
+            </button>
           </div>
-          {loading && (
-            <div className="flex items-center justify-center p-4">
-              <Loader className="animate-spin w-6 h-6 text-indigo-500" />
+          <div className="flex-1 overflow-auto bg-gray-900">
+            <PreviewFrame webContainer={webContainer} />
+          </div>
+        </div>
+      ) : (
+        <div className="h-full grid grid-cols-12 gap-4 p-4">
+          {/* Left Sidebar - Switchable Steps/Files Tabs */}
+          <div className="col-span-2 space-y-4 overflow-hidden flex flex-col">
+            {/* Sidebar Tab Buttons */}
+            <div className="flex gap-2 px-2">
+              <button
+                onClick={() => setSidebarTab("steps")}
+                className={`flex-1 py-2 px-3 rounded-lg font-semibold text-sm transition-all ${
+                  sidebarTab === "steps"
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                Build Steps
+              </button>
+              <button
+                onClick={() => setSidebarTab("files")}
+                className={`flex-1 py-2 px-3 rounded-lg font-semibold text-sm transition-all ${
+                  sidebarTab === "files"
+                    ? "bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                Files
+              </button>
             </div>
-          )}
-        </div>
 
-        {/* Middle - File Explorer */}
-        <div className="col-span-1">
-          <FileExplorer files={files} onFileSelect={setSelectedFile} />
-        </div>
+            {/* Sidebar Content */}
+            <div className="flex-1 overflow-hidden rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 shadow-lg flex flex-col">
+              {sidebarTab === "steps" ? (
+                // Build Steps Tab
+                <>
+                  <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 border-b border-indigo-500">
+                    <h3 className="text-sm font-bold text-white">Build Progress</h3>
+                  </div>
+                  <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                    <StepsList steps={steps} currentStep={1} onStepClick={() => {}} />
+                    {loading && (
+                      <div className="flex items-center justify-center p-6">
+                        <Loader className="animate-spin w-6 h-6 text-indigo-400" />
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                // Files Tab
+                <>
+                  <div className="p-4 bg-gradient-to-r from-pink-600 to-purple-600 border-b border-purple-500">
+                    <h3 className="text-sm font-bold text-white">Project Files</h3>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <FileExplorer files={files} onFileSelect={setSelectedFile} />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
-        {/* Right - Tabs and Content */}
-        <div className="col-span-2 bg-gray-900 rounded-lg shadow-lg h-[calc(100vh-8rem)]">
-          <TabView activeTab={activeTab} onTabChange={setActiveTab} />
-          <div className="h-[calc(100%-5rem)]">
-            {activeTab === "editor" && (
-              <CodeEditor
-                selectedFile={selectedFile}
-                onCodeChange={handleCodeChange}
-              />
-            )}
-            {activeTab === "chat" && (
-              <ChatPanel
-                messages={llmMessages}
-                onSendMessage={handleSendMessage}
-                isLoading={loading}
-              />
-            )}
-            {activeTab === "preview" && (
-              <PreviewFrame webContainer={webContainer} />
+          {/* Right Content Area */}
+          <div className="col-span-10 flex flex-col space-y-0">
+            {/* Control Bar */}
+            <div className="flex items-center justify-between mb-4 p-4 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-lg">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-gray-300">
+                  {splitViewMode ? "📐 Split View" : "🔀 Tab View"}
+                </span>
+                <button
+                  onClick={() => setSplitViewMode(!splitViewMode)}
+                  className={`px-3 py-1 rounded-lg text-sm font-semibold transition-all ${
+                    splitViewMode
+                      ? "bg-indigo-500 text-white shadow-lg"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  {splitViewMode ? "Split" : "Tabs"}
+                </button>
+              </div>
+
+              {splitViewMode && (
+                <span className="text-xs text-gray-400">Drag divider to resize</span>
+              )}
+
+              {!splitViewMode && (
+                <TabView activeTab={activeTab} onTabChange={setActiveTab} />
+              )}
+
+              <button
+                onClick={() => setFullPreview(true)}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold transition-all transform hover:scale-105 shadow-lg"
+              >
+                🖼️ Full Preview
+              </button>
+            </div>
+
+            {/* Content Area */}
+            {splitViewMode ? (
+              <div
+                id="split-container"
+                className="flex-1 flex gap-4 overflow-hidden"
+              >
+                {/* Editor Section */}
+                <div
+                  style={{ width: `${dividerPos}%` }}
+                  className="flex flex-col bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden"
+                >
+                  <div className="bg-gray-800 p-4 border-b border-gray-700">
+                    <h3 className="text-sm font-bold text-gray-300">
+                      {selectedFile ? selectedFile.path : "Code Editor"}
+                    </h3>
+                  </div>
+                  <div className="flex-1 overflow-auto bg-gray-950">
+                    <CodeEditor
+                      selectedFile={selectedFile}
+                      onCodeChange={handleCodeChange}
+                    />
+                  </div>
+                </div>
+
+                {/* Draggable Divider */}
+                <div
+                  onMouseDown={() => setIsDragging(true)}
+                  className={`w-1 bg-gradient-to-b from-indigo-500 via-purple-500 to-pink-500 cursor-col-resize hover:w-1.5 transition-all ${
+                    isDragging ? "w-1.5 shadow-lg" : ""
+                  }`}
+                />
+
+                {/* Preview Section */}
+                <div
+                  style={{ width: `${100 - dividerPos}%` }}
+                  className="flex flex-col bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden"
+                >
+                  <div className="bg-gray-800 p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h3 className="text-sm font-bold text-gray-300">
+                      Live Preview
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSplitViewMode(false)}
+                        className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                      >
+                        View Chat
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-auto bg-gray-950">
+                    <PreviewFrame webContainer={webContainer} />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden flex flex-col">
+                {activeTab === "editor" && (
+                  <div className="flex-1 overflow-auto">
+                    <div className="bg-gray-800 p-4 border-b border-gray-700">
+                      <h3 className="text-sm font-bold text-gray-300">
+                        {selectedFile ? selectedFile.path : "Code Editor"}
+                      </h3>
+                    </div>
+                    <div className="h-[calc(100%-5rem)]">
+                      <CodeEditor
+                        selectedFile={selectedFile}
+                        onCodeChange={handleCodeChange}
+                      />
+                    </div>
+                  </div>
+                )}
+                {activeTab === "chat" && (
+                  <div className="flex-1 flex flex-col h-full overflow-hidden">
+                    <div className="flex-shrink-0 bg-gray-800 p-4 border-b border-gray-700">
+                      <h3 className="text-sm font-bold text-gray-300">
+                        Chat with AI
+                      </h3>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <ChatPanel
+                        messages={llmMessages}
+                        onSendMessage={handleSendMessage}
+                        isLoading={loading}
+                      />
+                    </div>
+                  </div>
+                )}
+                {activeTab === "preview" && (
+                  <div className="flex-1 flex flex-col">
+                    <div className="bg-gray-800 p-4 border-b border-gray-700">
+                      <h3 className="text-sm font-bold text-gray-300">
+                        Live Preview
+                      </h3>
+                    </div>
+                    <div className="flex-1 overflow-auto bg-gray-950">
+                      <PreviewFrame webContainer={webContainer} />
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

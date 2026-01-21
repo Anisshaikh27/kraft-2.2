@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { File, FolderTree, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { File, FolderTree, ChevronDown, ChevronRight, Loader2, FileText, Code2 } from "lucide-react";
 import { FileItem } from "../types";
 
 interface FileExplorerProps {
@@ -11,10 +11,28 @@ interface FileNodeProps {
   item: FileItem;
   depth: number;
   onFileClick: (file: FileItem) => void;
+  selectedPath?: string;
 }
 
-function FileNode({ item, depth, onFileClick }: FileNodeProps) {
+function getFileIcon(fileName: string) {
+  if (fileName.endsWith(".tsx") || fileName.endsWith(".ts")) {
+    return <Code2 className="w-4 h-4 text-blue-400" />;
+  }
+  if (fileName.endsWith(".css")) {
+    return <Code2 className="w-4 h-4 text-purple-400" />;
+  }
+  if (fileName.endsWith(".json")) {
+    return <FileText className="w-4 h-4 text-yellow-400" />;
+  }
+  if (fileName.endsWith(".html")) {
+    return <Code2 className="w-4 h-4 text-orange-400" />;
+  }
+  return <File className="w-4 h-4 text-gray-400" />;
+}
+
+function FileNode({ item, depth, onFileClick, selectedPath }: FileNodeProps) {
   const [isExpanded, setIsExpanded] = useState(true); // Auto-expand by default
+  const isSelected = item.type === "file" && item.path === selectedPath;
 
   const handleClick = () => {
     if (item.type === "folder") {
@@ -27,12 +45,16 @@ function FileNode({ item, depth, onFileClick }: FileNodeProps) {
   return (
     <div className="select-none">
       <div
-        className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded-md cursor-pointer transition-colors"
-        style={{ paddingLeft: `${depth * 1.5}rem` }}
+        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
+          isSelected
+            ? "bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border-l-2 border-indigo-400 text-indigo-300"
+            : "hover:bg-gray-800/50 text-gray-300 hover:text-gray-100"
+        }`}
+        style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}
         onClick={handleClick}
       >
         {item.type === "folder" && (
-          <span className="text-gray-400">
+          <span className="text-gray-500 flex-shrink-0">
             {isExpanded ? (
               <ChevronDown className="w-4 h-4" />
             ) : (
@@ -41,11 +63,11 @@ function FileNode({ item, depth, onFileClick }: FileNodeProps) {
           </span>
         )}
         {item.type === "folder" ? (
-          <FolderTree className="w-4 h-4 text-blue-400" />
+          <FolderTree className="w-4 h-4 text-blue-400 flex-shrink-0" />
         ) : (
-          <File className="w-4 h-4 text-gray-400" />
+          getFileIcon(item.name)
         )}
-        <span className="text-gray-200 text-sm">{item.name}</span>
+        <span className="text-sm font-medium truncate flex-1">{item.name}</span>
       </div>
       {item.type === "folder" && isExpanded && item.children && (
         <div>
@@ -55,6 +77,7 @@ function FileNode({ item, depth, onFileClick }: FileNodeProps) {
               item={child}
               depth={depth + 1}
               onFileClick={onFileClick}
+              selectedPath={selectedPath}
             />
           ))}
         </div>
@@ -77,34 +100,45 @@ function countFiles(items: FileItem[]): number {
 
 export function FileExplorer({ files, onFileSelect }: FileExplorerProps) {
   const fileCount = countFiles(files);
+  const [selectedPath, setSelectedPath] = useState<string | undefined>();
+
+  const handleFileSelect = (file: FileItem) => {
+    setSelectedPath(file.path);
+    onFileSelect(file);
+  };
   
   return (
-    <div className="bg-gray-900 rounded-lg shadow-lg p-4 h-full overflow-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-100">
-          <FolderTree className="w-5 h-5" />
-          File Explorer
-        </h2>
-        <span className="text-xs px-2 py-1 rounded bg-gray-800 text-gray-400">
-          {fileCount} {fileCount === 1 ? "file" : "files"}
-        </span>
+    <div className="flex flex-col h-full">
+      <div className="px-2 py-3 border-b border-gray-700">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <FolderTree className="w-4 h-4 text-blue-400" />
+            Files
+          </h2>
+          <span className="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold">
+            {fileCount}
+          </span>
+        </div>
       </div>
       
       {files.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+        <div className="flex flex-col items-center justify-center flex-1 text-gray-500 p-4">
           <Loader2 className="w-6 h-6 animate-spin mb-2" />
           <p className="text-sm">Generating files...</p>
         </div>
       ) : (
-        <div className="space-y-1">
-          {files.map((file, index) => (
-            <FileNode
-              key={`${file.path}-${index}`}
-              item={file}
-              depth={0}
-              onFileClick={onFileSelect}
-            />
-          ))}
+        <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 p-1">
+          <div className="space-y-0.5">
+            {files.map((file, index) => (
+              <FileNode
+                key={`${file.path}-${index}`}
+                item={file}
+                depth={0}
+                onFileClick={handleFileSelect}
+                selectedPath={selectedPath}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
