@@ -21,10 +21,10 @@ export function PreviewFrame({ webContainer }: PreviewFrameProps) {
 
       setInstalling(true);
       setProgress(20);
-      console.log("Starting npm install...");
+      console.log("Starting pnpm install...");
 
-      // Run npm install
-      const installProcess = await webContainer.spawn("npm", ["install"]);
+      // Run pnpm install
+      const installProcess = await webContainer.spawn("pnpm", ["install"]);
       
       // Properly handle the output stream
       installProcess.output.pipeTo(
@@ -42,11 +42,11 @@ export function PreviewFrame({ webContainer }: PreviewFrameProps) {
       // Wait for install to complete
       const installExit = await installProcess.exit;
       if (installExit !== 0) {
-        setError(`npm install failed with exit code ${installExit}`);
+        setError(`pnpm install failed with exit code ${installExit}`);
         return;
       }
 
-      console.log("✅ npm install completed, starting dev server...");
+      console.log("✅ pnpm install completed, starting dev server...");
       setProgress(80);
       setInstalling(false);
 

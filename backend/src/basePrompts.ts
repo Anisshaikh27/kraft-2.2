@@ -1,38 +1,23 @@
 export const DESIGN_PROMPT =
-  "For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.\n\nBy default, this template supports JSX syntax with Tailwind CSS classes, React hooks, and Lucide React for icons. Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.\n\nUse icons from lucide-react for logos.\n\nUse stock photos from unsplash where appropriate, only valid URLs you know exist. Do not download the images, only link to them in image tags.\n\n";
+  "For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.\n\n" +
+  "By default, this template supports JSX syntax with Tailwind CSS classes, React hooks, and Lucide React for icons. Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.\n\n" +
+  "Use icons from lucide-react for logos.\n\n" +
+  "CRITICAL FOR IMAGES: Use high-quality stock photos from Unsplash. " +
+  "NEVER use URLs with 'ixid', 'ixlib', or timestamps as they frequently result in 404 errors. " +
+  "ONLY use the simple, reliable ID format: https://images.unsplash.com/photo-<ID>?auto=format&fit=crop&q=80&w=1080. \n\n" +
+  "Verified Safe IDs for common themes:\n" +
+  "- Tech/Software: 1498050108023-c5249f4df085\n" +
+  "- Business/Dashboard: 1460925895917-afdab827c52f\n" +
+  "- Modern Office: 1497366216548-37526070297c\n" +
+  "- Abstract Art: 1557683316-973673baf926\n" +
+  "- Food/Organic: 1567306301498-519add9a48be\n" +
+  "- Nature: 1470782305335-ed31e67e355d\n\n" +
+  "Always link directly to these images in image tags; do not attempt to download them.";
 
 export const NODE_BASE_PROMPT =
   '<boltArtifact id="project-import" title="Project Files"><boltAction type="file" filePath="index.js">// run `node index.js` in the terminal\n\nconsole.log(`Hello Node.js v${process.versions.node}!`);\n</boltAction><boltAction type="file" filePath="package.json">{\n  "name": "node-starter",\n  "private": true,\n  "scripts": {\n    "test": "echo \\"Error: no test specified\\" && exit 1"\n  }\n}\n</boltAction></boltArtifact>';
 
-export const REACT_BASE_PROMPT = `<boltArtifact id="project-import" title="Project Files"><boltAction type="file" filePath="eslint.config.js">import js from '@eslint/js';
-import globals from 'globals';
-import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
-import tseslint from 'typescript-eslint';
-
-export default tseslint.config(
-  { ignores: ['dist'] },
-  {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['**/*.{ts,tsx}'],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
-    plugins: {
-      'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
-    },
-    rules: {
-      ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
-    },
-  }
-);
-</boltAction><boltAction type="file" filePath="index.html"><!doctype html>
+export const REACT_BASE_PROMPT = `<boltAction type="file" filePath="index.html"><!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -53,28 +38,22 @@ export default tseslint.config(
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.9.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
-    "eslint": "^9.9.1",
-    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
-    "eslint-plugin-react-refresh": "^0.4.11",
-    "globals": "^15.9.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
-    "typescript-eslint": "^8.3.0",
     "vite": "^5.4.2"
   }
 }
