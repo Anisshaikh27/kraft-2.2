@@ -36,8 +36,8 @@ export function Layout({ files }: LayoutPrompts) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
-      <nav className="border-b border-gray-800 bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 backdrop-blur-sm">
+    <div className="h-screen flex flex-col bg-gray-900 text-gray-100 overflow-hidden">
+      <nav className="border-b border-gray-800 bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 backdrop-blur-sm flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
@@ -56,7 +56,7 @@ export function Layout({ files }: LayoutPrompts) {
           </div>
         </div>
       </nav>
-      <main>
+      <main className="flex-1 overflow-hidden min-h-0 flex flex-col">
         <Outlet />
       </main>
     </div>

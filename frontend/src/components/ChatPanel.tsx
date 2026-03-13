@@ -50,7 +50,7 @@ export function ChatPanel({
   return (
     <div className="h-full w-full flex flex-col bg-gradient-to-br from-gray-950 to-gray-900 overflow-hidden">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800 min-h-0">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-6">
             <div className="text-center">

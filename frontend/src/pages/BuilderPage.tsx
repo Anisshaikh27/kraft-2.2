@@ -206,40 +206,9 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
 
   // Handle chat messages
   const handleSendMessage = async (message: string) => {
-    const formatReminder = `
-
-IMPORTANT INSTRUCTIONS FOR CODE GENERATION:
-1. Use ONLY this exact XML format for responses:
-<boltAction type="file" filePath="path/to/file.ext">
-complete file content here (NO markdown code blocks)
-</boltAction>
-
-2. DO NOT generate:
-   - CartProvider imports or context files (app will provide these)
-   - External API calls or backend integrations
-   - Node.js/server code (only browser-compatible React code)
-
-3. For main.tsx, use this EXACT template:
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
-
-4. For all component imports, use relative paths like: "./Header.tsx"
-5. Only generate files that are actually referenced and used
-6. Use TailwindCSS for all styling`;
-
-    const formattedMessage = message + formatReminder;
-
     const newMessage: Message = {
       role: "user",
-      content: formattedMessage,
+      content: message,
     };
 
     setLlmMessages((prev) => [...prev, newMessage]);
@@ -271,10 +240,18 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         const updatedFiles = mergeFilesFromSteps(files, newSteps);
         setFiles(updatedFiles);
         
+        // Check if package.json was included
+        const hasPackageJson = newSteps.some(
+          (step) => step.path && step.path.endsWith("package.json")
+        );
+        if (!hasPackageJson) {
+          showToast("⚠️ Warning: No package.json in response. Dependencies may be missing.", "error");
+        }
+
         showToast(`✅ Added ${newSteps.length} files to project`, "success");
       } else {
         console.warn("No steps parsed. Response:", response.data.response);
-        showToast("⚠️ No files found in response. Try rephrasing your request.", "error");
+        showToast("⚠️ No files found in response. The AI may have used an incorrect format. Try rephrasing your request.", "error");
       }
     } catch (error) {
       console.error("Chat error:", error);
@@ -601,7 +578,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   }, [isDragging]);
 
   return (
-    <div className="flex-1 overflow-hidden bg-gray-950">
+    <div className="flex-1 h-full overflow-hidden bg-gray-950 flex flex-col">
       {/* Full Preview Mode */}
       {fullPreview ? (
         <div className="h-screen w-screen flex flex-col">
@@ -678,9 +655,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           </div>
 
           {/* Right Content Area */}
-          <div className="col-span-10 flex flex-col space-y-0">
+          <div className="col-span-10 flex flex-col h-full overflow-hidden min-h-0">
             {/* Control Bar */}
-            <div className="flex items-center justify-between mb-4 p-4 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-lg">
+            <div className="flex items-center justify-between mb-4 p-4 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-lg flex-shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold text-gray-300">
                   {splitViewMode ? "📐 Split View" : "🔀 Tab View"}
@@ -769,7 +746,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 </div>
               </div>
             ) : (
-              <div className="flex-1 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden flex flex-col">
+              <div className="flex-1 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden flex flex-col min-h-0">
                 {activeTab === "editor" && (
                   <div className="flex-1 overflow-auto">
                     <div className="bg-gray-800 p-4 border-b border-gray-700">
@@ -786,13 +763,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                   </div>
                 )}
                 {activeTab === "chat" && (
-                  <div className="flex-1 flex flex-col h-full overflow-hidden">
+                  <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
                     <div className="flex-shrink-0 bg-gray-800 p-4 border-b border-gray-700">
                       <h3 className="text-sm font-bold text-gray-300">
                         Chat with AI
                       </h3>
                     </div>
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden min-h-0">
                       <ChatPanel
                         messages={llmMessages}
                         onSendMessage={handleSendMessage}

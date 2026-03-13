@@ -1,6 +1,13 @@
+import "dotenv/config";
 import express from "express";
 
-require("dotenv").config();
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
 
 import { getSystemPrompt } from "./prompts";
 import {
@@ -22,8 +29,9 @@ app.post("/api/template", async (req, res) => {
     const prompt = req.body.prompt;
 
     const answer = await determineTemplate(prompt);
+    console.log("Determined template answer:", answer);
 
-    if (answer === "react") {
+    if (answer.includes("react") || answer === "react") {
       res.json({
         prompts: [
           DESIGN_PROMPT,

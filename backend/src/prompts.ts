@@ -178,6 +178,16 @@ Here are some examples of correct usage of artifacts:
       Certainly, I can help you create a JavaScript function to calculate the factorial of a number.
 
       <boltArtifact id="factorial-function" title="JavaScript Factorial Function">
+        <boltAction type="file" filePath="package.json">
+          {
+            "name": "factorial",
+            "private": true,
+            "scripts": {
+              "start": "node index.js"
+            }
+          }
+        </boltAction>
+
         <boltAction type="file" filePath="index.js">
           function factorial(n) {
            ...
@@ -284,6 +294,8 @@ Here are some examples of correct usage of artifacts:
     </assistant_response>
   </example>
 </examples>
+
+FINAL REMINDER: Your response MUST use <boltArtifact> and <boltAction> XML tags as shown above. package.json MUST be included with ALL dependencies. Do NOT use markdown code fences inside <boltAction> tags. The automated parser will FAIL if you deviate from this format.
 `;
 
 export const CONTINUE_PROMPT = stripIndents`

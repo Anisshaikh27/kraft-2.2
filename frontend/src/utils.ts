@@ -6,49 +6,71 @@ export function parseXml(response: string): Step[] {
   const steps: Step[] = [];
   let stepsId = 1;
 
-  // Extract the XML content (handles both wrapped and unwrapped cases)
-  const xmlMatch = response.match(/<boltArtifact[^>]*>([\s\S]*?)<\/boltArtifact>/);
-  const xmlContent = xmlMatch ? xmlMatch[1] : response;
+  // Step 1: Strip markdown code fences that might wrap the entire response
+  // Gemini sometimes wraps the XML in ```xml ... ``` or ```html ... ```
+  let cleanedResponse = response;
+  
+  // Remove outer markdown fences wrapping the whole response
+  const outerFenceMatch = cleanedResponse.match(/^```(?:xml|html|tsx|typescript|javascript)?\s*\n([\s\S]*?)\n```\s*$/);
+  if (outerFenceMatch) {
+    cleanedResponse = outerFenceMatch[1];
+  }
 
-  // Regular expression to find <boltAction> tags
-  // Improvements:
-  // 1. type="([^"]+)" -> Matches ANY type (more robust)
-  // 2. filePath="([^"]+)" -> Standard extraction
-  // 3. ([\s\S]*?) -> Captures content safely
-  const actionRegex = /<boltAction\s+type="([^"]+)"\s+filePath="([^"]+)">([\s\S]*?)<\/boltAction>/g;
+  // Step 2: Extract the XML content from <boltArtifact> tags
+  const xmlMatch = cleanedResponse.match(/<boltArtifact[^>]*>([\s\S]*?)<\/boltArtifact>/);
+  const xmlContent = xmlMatch ? xmlMatch[1] : cleanedResponse;
+
+  // Step 3: Parse file actions — handle both attribute orderings:
+  //   <boltAction type="file" filePath="...">
+  //   <boltAction filePath="..." type="file">
+  const fileActionRegex = /<boltAction\s+(?:type="([^"]+)"\s+filePath="([^"]+)"|filePath="([^"]+)"\s+type="([^"]+)")>([\s\S]*?)<\/boltAction>/g;
 
   let match;
-  while ((match = actionRegex.exec(xmlContent)) !== null) {
-    const [_, type, filePath, rawContent] = match;
+  while ((match = fileActionRegex.exec(xmlContent)) !== null) {
+    // Handle both attribute orderings
+    const type = match[1] || match[4];
+    const filePath = match[2] || match[3];
+    const rawContent = match[5];
 
-    // INTELLIGENT CLEANING:
-    // Only remove the specific markdown fences at the very start and end of the content.
-    // This preserves backticks inside the code (like template literals).
+    // Clean content: remove markdown fences at start/end only
     let content = rawContent.trim();
-    
+
     // Remove opening fence (e.g., ```tsx, ```typescript, or just ```)
-    if (content.startsWith('```')) {
-        content = content.replace(/^```[a-zA-Z]*\n?/, "");
+    if (content.startsWith("```")) {
+      content = content.replace(/^```[a-zA-Z]*\n?/, "");
     }
-    
+
     // Remove closing fence
-    if (content.endsWith('```')) {
-        content = content.replace(/```$/, "");
+    if (content.endsWith("```")) {
+      content = content.replace(/```$/, "");
     }
-    
+
     content = content.trim();
 
-    if (type === "file" || type === "createFile" || type === "updateFile" || type === "tool_code") {
+    if (
+      type === "file" ||
+      type === "createFile" ||
+      type === "updateFile" ||
+      type === "tool_code"
+    ) {
       steps.push({
         id: stepsId++,
-        title: filePath.split('/').pop() || "File",
+        title: filePath.split("/").pop() || "File",
         description: `Update ${filePath}`,
         status: "pending",
         type: StepType.CreateFile,
         code: content,
         path: filePath,
       });
-    } else if (type === "shell") {
+    }
+  }
+
+  // Step 4: Parse shell actions separately (no filePath attribute)
+  const shellRegex = /<boltAction\s+type="shell">([\s\S]*?)<\/boltAction>/g;
+
+  while ((match = shellRegex.exec(xmlContent)) !== null) {
+    const content = match[1].trim();
+    if (content) {
       steps.push({
         id: stepsId++,
         title: "Run Command",
