@@ -1,4 +1,4 @@
-import { CheckCircle, Circle, Clock, Loader2 } from "lucide-react";
+import { CheckCircle, Circle, Loader2 } from "lucide-react";
 import { Step } from "../types";
 
 interface StepsListProps {

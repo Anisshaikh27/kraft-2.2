@@ -4,7 +4,7 @@ import { Step, StepType } from "./types";
 
 export function parseXml(response: string): Step[] {
   const steps: Step[] = [];
-  let stepsId = 1;
+  let stepsId = Math.floor(Math.random() * 1000000) + Date.now();
 
   // Step 1: Strip markdown code fences that might wrap the entire response
   // Gemini sometimes wraps the XML in ```xml ... ``` or ```html ... ```

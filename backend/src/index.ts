@@ -1,5 +1,7 @@
 import "dotenv/config";
 import express from "express";
+import helmet from "helmet";
+import cors from "cors";
 
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
@@ -15,16 +17,54 @@ import {
   REACT_BASE_PROMPT,
   NODE_BASE_PROMPT,
 } from "./basePrompts";
-import cors from "cors";
 import { generateResponse, determineTemplate } from "./aiService";
-
-
+import { authMiddleware, AuthRequest } from "./middleware/auth";
+import authRouter from "./routes/auth";
+import projectsRouter from "./routes/projects";
 
 const app = express();
-app.use(express.json());
-app.use(cors());
 
-app.post("/api/template", async (req, res) => {
+// Security headers
+app.use(helmet());
+
+// CORS — allow standard Vite dev ports
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+];
+
+// If FRONTEND_URL is set in prod, add it to the allowed list
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+
+app.use(express.json({ limit: "10mb" }));
+
+// Admin kill-switch — emergency stop for AI routes
+function checkKillSwitch(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (process.env.KILL_SWITCH === "true") {
+    res.status(503).json({ message: "Service temporarily unavailable. Try again later." });
+    return;
+  }
+  next();
+}
+
+// Auth routes (public)
+app.use("/api/auth", authRouter);
+
+// Projects routes (requires auth — handled inside the router)
+app.use("/api/projects", projectsRouter);
+
+// AI routes — require auth + kill-switch check
+app.post("/api/template", authMiddleware, checkKillSwitch, async (req: AuthRequest, res: express.Response) => {
   try {
     const prompt = req.body.prompt;
 
@@ -59,7 +99,7 @@ app.post("/api/template", async (req, res) => {
   }
 });
 
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", authMiddleware, checkKillSwitch, async (req: AuthRequest, res: express.Response) => {
   try {
     const messages = req.body.messages;
     const response = await generateResponse(messages, getSystemPrompt());
@@ -78,4 +118,6 @@ app.post("/api/chat", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`CORS allowed origin: ${process.env.FRONTEND_URL || "http://localhost:5173"}`);
+  console.log(`Kill switch: ${process.env.KILL_SWITCH === "true" ? "ACTIVE ⛔" : "off ✅"}`);
 });

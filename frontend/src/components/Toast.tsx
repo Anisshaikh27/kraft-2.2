@@ -59,12 +59,6 @@ export function ToastContainer() {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
-  // This will be called from parent components via ref or context
-  const addToast = (message: string, type: ToastMessage["type"]) => {
-    const id = Date.now().toString();
-    setToasts((prev) => [...prev, { id, message, type }]);
-  };
-
   return (
     <div className="fixed top-4 right-4 space-y-2 z-50">
       {toasts.map((toast) => (
@@ -82,6 +76,7 @@ export function ToastContainer() {
 // Hook for using toasts
 import { useCallback } from "react";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
   const showToast = useCallback((message: string, type: ToastMessage["type"]) => {
     // Create a custom event to trigger toast

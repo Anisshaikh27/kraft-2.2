@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { WebContainer } from "@webcontainer/api";
 
+let webcontainerInstance: WebContainer | null = null;
+
 export function useWebContainer() {
   const [webContainer, setWebContainer] = useState<WebContainer>();
 
   async function main() {
-    const webcontainerInstance = await WebContainer.boot();
+    if (!webcontainerInstance) {
+      webcontainerInstance = await WebContainer.boot();
+    }
     setWebContainer(webcontainerInstance);
   }
 

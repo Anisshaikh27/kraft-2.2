@@ -84,6 +84,7 @@ export function PreviewFrame({ webContainer }: PreviewFrameProps) {
     if (webContainer) {
       main();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webContainer]);
 
   const handleRetry = () => {

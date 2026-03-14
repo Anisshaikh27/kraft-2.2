@@ -1,1 +1,1 @@
-{"root":["./src/aiservice.ts","./src/baseprompts.ts","./src/constants.ts","./src/index.ts","./src/prompts.ts","./src/stripindents.ts","./src/test-gemini.ts"],"version":"5.7.2"}
+{"root":["./src/aiservice.ts","./src/baseprompts.ts","./src/constants.ts","./src/db.ts","./src/index.ts","./src/prompts.ts","./src/stripindents.ts","./src/test-gemini.ts","./src/__mocks__/prisma.ts","./src/middleware/auth.ts","./src/routes/auth.ts","./src/routes/projects.ts","./src/routes/__tests__/auth.test.ts","./src/routes/__tests__/projects.test.ts"],"version":"5.7.2"}
