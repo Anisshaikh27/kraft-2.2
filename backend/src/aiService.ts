@@ -16,12 +16,10 @@ export async function generateResponse(
   systemPrompt?: string
 ): Promise<string> {
   try {
-    // Try Gemini first
     return await generateWithGemini(messages, systemPrompt);
   } catch (geminiError) {
     console.error("Gemini API failed, falling back to Claude:", geminiError);
     try {
-      // Fallback to Claude
       return await generateWithClaude(messages, systemPrompt);
     } catch (claudeError) {
       console.error("Both APIs failed:", claudeError);
@@ -34,30 +32,47 @@ async function generateWithGemini(
   messages: Message[],
   systemPrompt?: string
 ): Promise<string> {
-  // Use systemInstruction so Gemini treats format rules as strict instructions
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
     systemInstruction: systemPrompt || undefined,
   });
 
-  // Convert messages to Gemini format
+  // Gemini requires history to start with a 'user' role message.
+  // Separate the last message (the new prompt) from the history.
+  const lastMessage = messages[messages.length - 1];
+  const historyMessages = messages.slice(0, -1);
+
+  // Find the first 'user' message index to trim any leading 'assistant' messages.
+  const firstUserIndex = historyMessages.findIndex((m) => m.role === "user");
+  const validHistory = firstUserIndex >= 0
+    ? historyMessages.slice(firstUserIndex)
+    : [];
+
+  // Gemini alternates user/model strictly. Merge consecutive same-role messages.
+  const mergedHistory: { role: "user" | "model"; parts: { text: string }[] }[] = [];
+  for (const msg of validHistory) {
+    const geminiRole = msg.role === "assistant" ? "model" : "user";
+    const last = mergedHistory[mergedHistory.length - 1];
+    if (last && last.role === geminiRole) {
+      // Append to existing entry
+      last.parts[0].text += "\n" + msg.content;
+    } else {
+      mergedHistory.push({ role: geminiRole, parts: [{ text: msg.content }] });
+    }
+  }
+
   const chat = model.startChat({
-    history: messages.slice(0, -1).map((msg) => ({
-      role: msg.role === "assistant" ? "model" : "user",
-      parts: [{ text: msg.content }],
-    })),
+    history: mergedHistory,
     generationConfig: {
       maxOutputTokens: 20000,
-      temperature: 0.3, // Low temperature for consistent structured output
+      temperature: 0.3,
     },
   });
 
-  const prompt = messages[messages.length - 1].content;
-
+  const prompt = lastMessage.content;
   const result = await chat.sendMessage(prompt);
   const response = await result.response;
 
-  // Print Gemini's response to your backend terminal
   console.log("--- GEMINI RESPONSE START ---");
   console.log(response.text());
   console.log("--- GEMINI RESPONSE END ---");
@@ -84,7 +99,6 @@ async function generateWithClaude(
 
 export async function determineTemplate(prompt: string): Promise<string> {
   try {
-    // Try Gemini first
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(
       `${prompt}\n\nReturn either 'node' or 'react' based on what this project should be. Only return a single word either 'node' or 'react'. Do not return anything extra.`
@@ -93,7 +107,6 @@ export async function determineTemplate(prompt: string): Promise<string> {
     return response.text().trim().toLowerCase();
   } catch (error) {
     console.error("Gemini template detection failed, using Claude:", error);
-    // Fallback to Claude
     const response = await anthropic.messages.create({
       messages: [
         {
