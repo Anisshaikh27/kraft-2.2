@@ -162,48 +162,74 @@ createRoot(document.getElementById('root')!).render(
 </boltAction></boltArtifact>`;
 
 export const FORMAT_INSTRUCTION = `
-CRITICAL FORMAT INSTRUCTIONS:
-You MUST wrap ALL your file creation responses in the following XML format:
+<output_format>
+ABSOLUTE OUTPUT FORMAT RULES — VIOLATION WILL CAUSE SYSTEM FAILURE:
 
-<boltArtifact id="unique-id" title="Project Title">
-<boltAction type="file" filePath="path/to/file.ext">
-file content here
-</boltAction>
-<boltAction type="file" filePath="path/to/another.ext">
-another file content
-</boltAction>
-</boltArtifact>
+You MUST wrap ALL code responses in this EXACT XML structure. The parser depends on this exact format.
 
-MANDATORY RULES - FOLLOW THESE EXACTLY:
-1. ALWAYS use <boltArtifact> as the ONLY root wrapper
-2. ALWAYS use type="file" (NEVER use type="tool_code")
-3. Use filePath attribute ONLY (NOT artifactPath)
-4. Put the COMPLETE, FULL file content inside <boltAction> tags
-5. Do NOT use markdown code blocks (\`\`\`) inside <boltAction> tags
-6. Do NOT truncate or use "Lines X omitted" - provide COMPLETE files
-7. For shell commands, use <boltAction type="shell">
-
-⚠️ CRITICAL: App.tsx MUST ALWAYS BE INCLUDED
-- App.tsx is the main entry point for React apps
-- Without App.tsx, the application WILL NOT render
-- Always ensure App.tsx is PRESENT and COMPLETE
-
-FILE CONTENT RULES:
-- Provide the ENTIRE file content - NEVER truncate
-- No "..." or "// rest of code here" shortcuts
-- Complete all unfinished files
-
-✅ CORRECT FORMAT EXAMPLE:
-<boltArtifact id="ecommerce-app" title="E-Commerce App">
-<boltAction type="file" filePath="src/App.tsx">
-import React from 'react';
-export default function App() {
-  return <div>E-Commerce</div>;
+REQUIRED STRUCTURE:
+<boltArtifact id="kebab-case-id" title="Project Title">
+<boltAction type="file" filePath="package.json">
+{
+  "name": "project-name",
+  "dependencies": { ... },
+  "devDependencies": { ... },
+  "scripts": { "dev": "vite" }
 }
 </boltAction>
+<boltAction type="file" filePath="src/App.tsx">
+// complete file content — NO markdown, NO backticks
+</boltAction>
+<boltAction type="shell">
+npm install
+</boltAction>
 </boltArtifact>
 
-❌ WRONG FORMAT (NEVER DO THIS):
-<boltArtifact artifactPath="src/App.tsx" />
-<boltAction type="tool_code" filePath="...">
-`;
+MANDATORY RULES (MEMORIZE THESE):
+
+RULE 1 — EXACT TAG NAMES:
+  - Root wrapper: <boltArtifact> (with id and title attributes)
+  - Each file/command: <boltAction> (with type attribute)
+  - Closing tags: </boltAction> and </boltArtifact>
+  - NEVER use any other tag names
+
+RULE 2 — ALLOWED type VALUES:
+  - type="file" — for creating/updating files (MUST have filePath attribute)
+  - type="shell" — for running shell commands (NO filePath attribute)
+  - NEVER use type="tool_code", type="createFile", type="updateFile"
+
+RULE 3 — package.json IS MANDATORY:
+  - ALWAYS include a <boltAction type="file" filePath="package.json"> as the FIRST file
+  - The package.json MUST list ALL dependencies used in your code
+  - If you import "framer-motion" in any file, it MUST be in package.json dependencies
+  - If you import "react-router-dom" in any file, it MUST be in package.json dependencies
+  - Missing dependencies will crash the WebContainer runtime
+
+RULE 4 — NO MARKDOWN INSIDE TAGS:
+  - NEVER use \`\`\` (backtick fences) inside <boltAction> tags
+  - NEVER wrap file contents in markdown code blocks
+  - The content inside <boltAction> IS the raw file content, nothing else
+
+RULE 5 — COMPLETE FILE CONTENTS:
+  - NEVER truncate files with "..." or "// rest of code"
+  - NEVER use "/* existing code */" or "<- leave original ->"
+  - Every <boltAction type="file"> MUST contain the COMPLETE file
+
+RULE 6 — App.tsx IS MANDATORY:
+  - For React projects, ALWAYS include src/App.tsx
+  - It is the application entry point — without it, nothing renders
+
+RULE 7 — FILE PATHS:
+  - Use filePath attribute ONLY (NEVER artifactPath)
+  - All paths are relative to project root (e.g., "src/App.tsx", "package.json")
+
+WHAT WILL BREAK THE PARSER (NEVER DO THESE):
+❌ Using \`\`\`tsx before file content inside boltAction tags
+❌ Using <boltArtifact artifactPath="..."> instead of id/title
+❌ Using type="tool_code" instead of type="file"
+❌ Forgetting to close </boltAction> or </boltArtifact> tags
+❌ Omitting package.json from the response
+❌ Writing file content outside of <boltAction> tags
+❌ Using HTML entities like &lt; &gt; inside boltAction file content
+</output_format>
+`;

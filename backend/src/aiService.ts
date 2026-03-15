@@ -34,7 +34,11 @@ async function generateWithGemini(
   messages: Message[],
   systemPrompt?: string
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  // Use systemInstruction so Gemini treats format rules as strict instructions
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    systemInstruction: systemPrompt || undefined,
+  });
 
   // Convert messages to Gemini format
   const chat = model.startChat({
@@ -44,32 +48,20 @@ async function generateWithGemini(
     })),
     generationConfig: {
       maxOutputTokens: 20000,
-      temperature: 0.7,
-
-    //   "temperature": 0.2,          # Lower temperature for more stable code
-    // "thinking_config": {         
-    //     "include_thoughts": False, # Disable thinking to save token space
-    //     "thinking_budget": 0 
-    // }
-      
+      temperature: 0.3, // Low temperature for consistent structured output
     },
   });
 
-  // Add system prompt as first user message if provided
-  let prompt = messages[messages.length - 1].content;
-  if (systemPrompt && messages.length === 1) {
-    prompt = `${systemPrompt}\n\n${prompt}`;
-  }
+  const prompt = messages[messages.length - 1].content;
 
   const result = await chat.sendMessage(prompt);
   const response = await result.response;
-
 
   // Print Gemini's response to your backend terminal
   console.log("--- GEMINI RESPONSE START ---");
   console.log(response.text());
   console.log("--- GEMINI RESPONSE END ---");
-  
+
   return response.text();
 }
 

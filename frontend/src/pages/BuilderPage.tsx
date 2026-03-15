@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { BACKEND_URL } from "../config";
+import { BACKEND_URL, getAuthHeaders } from "../config";
 import { FileExplorer } from "../components/FileExplorer";
 import { CodeEditor } from "../components/CodeEditor";
 import { ChatPanel } from "../components/ChatPanel";
@@ -14,6 +14,7 @@ import { useWebContainer } from "../hooks/useWebContainer";
 import { PreviewFrame } from "../components/PreviewFrame";
 import { Loader } from "lucide-react";
 import { useToast } from "../components/Toast";
+import { useAuthStore } from "../store/authStore";
 
 interface BuilderProps {
   files: FileItem[];
@@ -30,13 +31,14 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
 
   const location = useLocation();
   const webContainer = useWebContainer();
-  const { task } = location.state as { task: string };
+  const { task, projectId: existingProjectId } = (location.state || {}) as { task: string; projectId?: string };
   const { showToast } = useToast();
+  const { token } = useAuthStore();
+  const projectIdRef = useRef<string | null>(existingProjectId || null);
 
   const [loading, setLoading] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [llmMessages, setLlmMessages] = useState<Message[]>([]);
-  const [boilerplateInitialized, setBoilerplateInitialized] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [activeTab, setActiveTab] = useState<
@@ -69,7 +71,7 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
 
   // Helper function to add a file to the structure
   const addFileToStructure = (baseFiles: FileItem[], filePath: string, content: string): FileItem[] => {
-    let updatedFiles = JSON.parse(JSON.stringify(baseFiles));
+    const updatedFiles = JSON.parse(JSON.stringify(baseFiles));
     const parts = filePath.split("/").filter(Boolean);
     let current = updatedFiles;
 
@@ -128,127 +130,64 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
     setSelectedFile({ ...selectedFile, content: newCode });
   };
 
-  // OPTIMIZED: Process steps immediately as they come in
-  const processStepsToFiles = (stepsToProcess: Step[]) => {
-    let updatedFiles = JSON.parse(JSON.stringify(files)); // Deep copy
-    let hasChanges = false;
-    let filesCreated = 0;
+  // Flatten FileItem tree to { path, content }[] for saving to DB
+  const flattenFiles = (items: FileItem[], prefix = ""): { path: string; content: string }[] => {
+    const result: { path: string; content: string }[] = [];
+    items.forEach((item) => {
+      if (item.type === "file" && item.content !== undefined) {
+        result.push({ path: item.path || `/${item.name}`, content: item.content });
+      } else if (item.type === "folder" && item.children) {
+        result.push(...flattenFiles(item.children, prefix));
+      }
+    });
+    return result;
+  };
 
-    stepsToProcess
-      .filter(({ status, type }) => 
-        status === "pending" && type === StepType.CreateFile
-      )
-      .forEach((step) => {
-        if (!step.path || !step.code) return;
-
-        hasChanges = true;
-        filesCreated++;
-        
-        // Split path and remove empty strings
-        const parts = step.path.split("/").filter(Boolean);
-        
-        // Navigate/create the folder structure
-        let current = updatedFiles;
-        
-        for (let i = 0; i < parts.length - 1; i++) {
-          const folderName = parts[i];
-          
-          // Find or create folder
-          let folder = current.find((item: FileItem) => 
-            item.name === folderName && item.type === "folder"
-          );
-          
-          if (!folder) {
-            folder = {
-              name: folderName,
-              type: "folder",
-              path: `/${parts.slice(0, i + 1).join("/")}`,
-              children: [],
-            };
-            current.push(folder);
-          }
-          
-          current = folder.children;
-        }
-        
-        // Add or update the file
-        const fileName = parts[parts.length - 1];
-        const existingFileIndex = current.findIndex((item: FileItem) => 
-          item.name === fileName && item.type === "file"
-        );
-        
-        if (existingFileIndex >= 0) {
-          current[existingFileIndex].content = step.code;
-        } else {
-          current.push({
-            name: fileName,
-            type: "file",
-            path: step.path,
-            content: step.code,
-          });
-        }
-      });
-
-    if (hasChanges) {
-      setFiles(updatedFiles);
-      showToast(`✅ Created ${filesCreated} ${filesCreated === 1 ? 'file' : 'files'}`, 'success');
-      
-      // Mark processed steps as completed
-      setSteps((prevSteps) =>
-        prevSteps.map((s) =>
-          stepsToProcess.find(st => st.id === s.id)
-            ? { ...s, status: "completed" as const }
-            : s
-        )
+  // Save files snapshot to DB
+  const saveFilesToDB = async (currentFiles: FileItem[]) => {
+    if (!projectIdRef.current || !token) return;
+    try {
+      await axios.put(
+        `${BACKEND_URL}/api/projects/${projectIdRef.current}/files`,
+        { files: flattenFiles(currentFiles) },
+        { headers: getAuthHeaders(token) }
       );
+    } catch (err) {
+      console.warn("Failed to save files to DB:", err);
+    }
+  };
+
+  // Save a single chat message to DB
+  const saveMessageToDB = async (role: "user" | "assistant", content: string) => {
+    if (!projectIdRef.current || !token) return;
+    try {
+      await axios.post(
+        `${BACKEND_URL}/api/projects/${projectIdRef.current}/messages`,
+        { role, content },
+        { headers: getAuthHeaders(token) }
+      );
+    } catch (err) {
+      console.warn("Failed to save message to DB:", err);
     }
   };
 
   // Handle chat messages
   const handleSendMessage = async (message: string) => {
-    const formatReminder = `
-
-IMPORTANT INSTRUCTIONS FOR CODE GENERATION:
-1. Use ONLY this exact XML format for responses:
-<boltAction type="file" filePath="path/to/file.ext">
-complete file content here (NO markdown code blocks)
-</boltAction>
-
-2. DO NOT generate:
-   - CartProvider imports or context files (app will provide these)
-   - External API calls or backend integrations
-   - Node.js/server code (only browser-compatible React code)
-
-3. For main.tsx, use this EXACT template:
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
-
-4. For all component imports, use relative paths like: "./Header.tsx"
-5. Only generate files that are actually referenced and used
-6. Use TailwindCSS for all styling`;
-
-    const formattedMessage = message + formatReminder;
-
     const newMessage: Message = {
       role: "user",
-      content: formattedMessage,
+      content: message,
     };
 
     setLlmMessages((prev) => [...prev, newMessage]);
+    saveMessageToDB("user", message);
     setLoading(true);
 
     try {
-      const response = await axios.post(`${BACKEND_URL}/api/chat`, {
-        messages: [...llmMessages, newMessage],
-      });
+      const response = await axios.post(
+        `${BACKEND_URL}/api/chat`,
+        { messages: [...llmMessages, newMessage] },
+        { headers: getAuthHeaders(token) }
+      );
 
       const assistantMessage: Message = {
         role: "assistant",
@@ -256,11 +195,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       };
 
       setLlmMessages((prev) => [...prev, assistantMessage]);
+      saveMessageToDB("assistant", response.data.response);
 
       // Parse and immediately process steps
       const newSteps = parseXml(response.data.response).map((x) => ({
         ...x,
-        status: "pending" as "pending",
+        status: "pending" as const,
       }));
 
       if (newSteps.length > 0) {
@@ -270,11 +210,20 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         // Merge new files with existing files synchronously
         const updatedFiles = mergeFilesFromSteps(files, newSteps);
         setFiles(updatedFiles);
+        saveFilesToDB(updatedFiles);
         
+        // Check if package.json was included
+        const hasPackageJson = newSteps.some(
+          (step) => step.path && step.path.endsWith("package.json")
+        );
+        if (!hasPackageJson) {
+          showToast("⚠️ Warning: No package.json in response. Dependencies may be missing.", "error");
+        }
+
         showToast(`✅ Added ${newSteps.length} files to project`, "success");
       } else {
         console.warn("No steps parsed. Response:", response.data.response);
-        showToast("⚠️ No files found in response. Try rephrasing your request.", "error");
+        showToast("⚠️ No files found in response. The AI may have used an incorrect format. Try rephrasing your request.", "error");
       }
     } catch (error) {
       console.error("Chat error:", error);
@@ -293,9 +242,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   useEffect(() => {
     if (!webContainer) return;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const createMountStructure = (files: FileItem[]): Record<string, any> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mountStructure: Record<string, any> = {};
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const addToStructure = (structure: Record<string, any>, file: FileItem) => {
         if (file.type === "folder" && file.children) {
           structure[file.name] = { directory: {} };
@@ -322,6 +274,42 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     console.log("Mounting files to WebContainer:", JSON.stringify(mountStructure, null, 2));
     webContainer.mount(mountStructure);
   }, [files, webContainer]);
+
+  // Load an existing project from DB (when resuming from Dashboard)
+  async function loadExistingProject(projectId: string) {
+    setLoading(true);
+    try {
+      const res = await axios.get(
+        `${BACKEND_URL}/api/projects/${projectId}`,
+        { headers: getAuthHeaders(token) }
+      );
+      const project = res.data.project;
+
+      // Rebuild FileItem tree from flat DB files
+      let restoredFiles: FileItem[] = [];
+      for (const dbFile of project.files) {
+        restoredFiles = addFileToStructure(restoredFiles, dbFile.path, dbFile.content);
+      }
+      setFiles(restoredFiles);
+
+      // Restore chat messages
+      const restoredMessages: Message[] = project.messages.map(
+        (m: { role: "user" | "assistant"; content: string }) => ({
+          role: m.role,
+          content: m.content,
+        })
+      );
+      setLlmMessages(restoredMessages);
+
+      showToast(`✅ Resumed project: ${project.title}`, "success");
+    } catch (error) {
+      console.error("Failed to load project:", error);
+      showToast("❌ Failed to load project. Starting fresh.", "error");
+      init();
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Initialize project
   async function init() {
@@ -440,10 +428,24 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       let currentFiles = JSON.parse(JSON.stringify(initialBoilerplate));
       setFiles(currentFiles);
 
+      // Create project in DB first
+      try {
+        const projectRes = await axios.post(
+          `${BACKEND_URL}/api/projects`,
+          { prompt: task, template: "react" }, // template will be updated after detection
+          { headers: getAuthHeaders(token) }
+        );
+        projectIdRef.current = projectRes.data.project.id;
+      } catch (err) {
+        console.warn("Failed to create project in DB:", err);
+      }
+
       // Get template/boilerplate from backend
-      const templateResponse = await axios.post(`${BACKEND_URL}/api/template`, {
-        prompt: task,
-      });
+      const templateResponse = await axios.post(
+        `${BACKEND_URL}/api/template`,
+        { prompt: task },
+        { headers: getAuthHeaders(token) }
+      );
 
       const { prompts, uiPrompts } = templateResponse.data;
 
@@ -460,16 +462,20 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       setFiles(currentFiles);
 
       // Get AI-generated files
-      const stepsResponse = await axios.post(`${BACKEND_URL}/api/chat`, {
-        messages: [...prompts, task].map((content) => ({
-          role: "user",
-          content,
-        })),
-      });
+      const stepsResponse = await axios.post(
+        `${BACKEND_URL}/api/chat`,
+        {
+          messages: [...prompts, task].map((content) => ({
+            role: "user",
+            content,
+          })),
+        },
+        { headers: getAuthHeaders(token) }
+      );
 
       const aiSteps = parseXml(stepsResponse.data.response).map((x) => ({
         ...x,
-        status: "pending" as "pending",
+        status: "pending" as const,
       }));
 
       setSteps((s) => [...s, ...aiSteps]);
@@ -489,6 +495,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       
       setFiles(currentFiles);
 
+      // Save generated files to DB
+      saveFilesToDB(currentFiles);
+
       // Mark all as completed
       setSteps((prevSteps) =>
         prevSteps.map((s) => ({ ...s, status: "completed" as const }))
@@ -496,17 +505,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
       showToast("✅ Project initialized with all files!", "success");
 
-      // Initialize chat
-      setLlmMessages([
-        {
-          role: "user",
-          content: task,
-        },
-        {
-          role: "assistant",
-          content: stepsResponse.data.response,
-        },
-      ]);
+      // Initialize chat messages
+      const initialMessages: Message[] = [
+        { role: "user", content: task },
+        { role: "assistant", content: stepsResponse.data.response },
+      ];
+      setLlmMessages(initialMessages);
+
+      // Save initial messages to DB
+      saveMessageToDB("user", task);
+      saveMessageToDB("assistant", stepsResponse.data.response);
     } catch (error) {
       console.error("Initialization error:", error);
       showToast("❌ Error initializing project", "error");
@@ -517,7 +525,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
   // Helper function to merge files without async issues
   const mergeFilesFromSteps = (baseFiles: FileItem[], steps: Step[]): FileItem[] => {
-    let updatedFiles = JSON.parse(JSON.stringify(baseFiles));
+    const updatedFiles = JSON.parse(JSON.stringify(baseFiles));
 
     steps
       .filter(({ type }) => type === StepType.CreateFile)
@@ -569,7 +577,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   }
 
   useEffect(() => {
-    init();
+    if (existingProjectId) {
+      loadExistingProject(existingProjectId);
+    } else {
+      init();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle dragging divider for split view
@@ -601,7 +614,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   }, [isDragging]);
 
   return (
-    <div className="flex-1 overflow-hidden bg-gray-950">
+    <div className="flex-1 h-full overflow-hidden bg-gray-950 flex flex-col">
       {/* Full Preview Mode */}
       {fullPreview ? (
         <div className="h-screen w-screen flex flex-col">
@@ -678,9 +691,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           </div>
 
           {/* Right Content Area */}
-          <div className="col-span-10 flex flex-col space-y-0">
+          <div className="col-span-10 flex flex-col h-full overflow-hidden min-h-0">
             {/* Control Bar */}
-            <div className="flex items-center justify-between mb-4 p-4 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-lg">
+            <div className="flex items-center justify-between mb-4 p-4 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-lg flex-shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold text-gray-300">
                   {splitViewMode ? "📐 Split View" : "🔀 Tab View"}
@@ -726,7 +739,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 >
                   <div className="bg-gray-800 p-4 border-b border-gray-700">
                     <h3 className="text-sm font-bold text-gray-300">
-                      {selectedFile ? selectedFile.path : "Code Editor"}
+                      Code Editor
                     </h3>
                   </div>
                   <div className="flex-1 overflow-auto bg-gray-950">
@@ -769,12 +782,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 </div>
               </div>
             ) : (
-              <div className="flex-1 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden flex flex-col">
+              <div className="flex-1 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden flex flex-col min-h-0">
                 {activeTab === "editor" && (
                   <div className="flex-1 overflow-auto">
                     <div className="bg-gray-800 p-4 border-b border-gray-700">
                       <h3 className="text-sm font-bold text-gray-300">
-                        {selectedFile ? selectedFile.path : "Code Editor"}
+                        Code Editor
                       </h3>
                     </div>
                     <div className="h-[calc(100%-5rem)]">
@@ -786,13 +799,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                   </div>
                 )}
                 {activeTab === "chat" && (
-                  <div className="flex-1 flex flex-col h-full overflow-hidden">
+                  <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
                     <div className="flex-shrink-0 bg-gray-800 p-4 border-b border-gray-700">
                       <h3 className="text-sm font-bold text-gray-300">
                         Chat with AI
                       </h3>
                     </div>
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden min-h-0">
                       <ChatPanel
                         messages={llmMessages}
                         onSendMessage={handleSendMessage}
