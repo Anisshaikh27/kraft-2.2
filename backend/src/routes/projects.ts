@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { authMiddleware, AuthRequest } from "../middleware/auth";
-import { prisma } from "../db";
+import { prisma, withRetry } from "../db";
 
 const router = Router();
 
@@ -63,19 +63,21 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 // GET /api/projects — list all projects for the user
 router.get("/", async (req: AuthRequest, res: Response) => {
   try {
-    const projects = await prisma.project.findMany({
-      where: { userId: req.userId },
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        prompt: true,
-        template: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: { select: { messages: true } },
-      },
-    });
+    const projects = await withRetry(() =>
+      prisma.project.findMany({
+        where: { userId: req.userId },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          prompt: true,
+          template: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: { select: { messages: true } },
+        },
+      })
+    );
 
     res.json({ projects });
   } catch (error) {
