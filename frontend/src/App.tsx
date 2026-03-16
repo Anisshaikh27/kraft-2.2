@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { LandingPage } from "./pages/LandingPage";
@@ -9,9 +9,17 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ToastProvider } from "./components/Toast";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { FileItem } from "./types";
+import { BACKEND_URL } from "./config";
 
 function App() {
   const [files, setFiles] = useState<FileItem[]>([]);
+
+  // Pre-emptively wake up the Render free-tier backend
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/health`).catch(() => {
+      // Silently ignore if it fails or is still booting
+    });
+  }, []);
 
   return (
     <ToastProvider>

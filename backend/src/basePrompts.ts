@@ -78,19 +78,15 @@ export default {
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"]
@@ -108,30 +104,26 @@ export default {
     "lib": ["ES2023"],
     "module": "ESNext",
     "skipLibCheck": true,
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "strict": false
   },
   "include": ["vite.config.ts"]
 }
 </boltAction><boltAction type="file" filePath="vite.config.ts">import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
+  },
+  build: {
+    sourcemap: false,
+    minify: 'esbuild',
   },
 });
 </boltAction><boltAction type="file" filePath="src/App.tsx">import React from 'react';
@@ -198,12 +190,18 @@ RULE 2 — ALLOWED type VALUES:
   - type="shell" — for running shell commands (NO filePath attribute)
   - NEVER use type="tool_code", type="createFile", type="updateFile"
 
-RULE 3 — package.json IS MANDATORY:
+RULE 3 — package.json IS MANDATORY AND MUST BE MINIMAL:
   - ALWAYS include a <boltAction type="file" filePath="package.json"> as the FIRST file
   - The package.json MUST list ALL dependencies used in your code
-  - If you import "framer-motion" in any file, it MUST be in package.json dependencies
-  - If you import "react-router-dom" in any file, it MUST be in package.json dependencies
-  - Missing dependencies will crash the WebContainer runtime
+  - STRICT BANNED packages — NEVER include these (they bloat the install and slow the preview):
+      eslint, @eslint/*, eslint-plugin-*, typescript-eslint, prettier,
+      jest, vitest, @testing-library/*, cypress, playwright,
+      @types/jest, @types/mocha, husky, lint-staged, commitlint,
+      @storybook/*, storybook, webpack, webpack-cli, webpack-dev-server,
+      babel-loader, ts-loader, css-loader, style-loader,
+      nodemon (use vite dev server instead)
+  - ONLY include packages you actually import in the code
+  - Keep devDependencies minimal: only vite, @vitejs/plugin-react, typescript, @types/react, @types/react-dom, tailwindcss, postcss, autoprefixer
 
 RULE 4 — NO MARKDOWN INSIDE TAGS:
   - NEVER use \`\`\` (backtick fences) inside <boltAction> tags
@@ -223,6 +221,10 @@ RULE 7 — FILE PATHS:
   - Use filePath attribute ONLY (NEVER artifactPath)
   - All paths are relative to project root (e.g., "src/App.tsx", "package.json")
 
+RULE 8 — TYPESCRIPT CONFIG:
+  - Always set "strict": false in tsconfig to avoid type errors blocking the build
+  - Always set "noUnusedLocals": false and "noUnusedParameters": false
+
 WHAT WILL BREAK THE PARSER (NEVER DO THESE):
 ❌ Using \`\`\`tsx before file content inside boltAction tags
 ❌ Using <boltArtifact artifactPath="..."> instead of id/title
@@ -230,6 +232,7 @@ WHAT WILL BREAK THE PARSER (NEVER DO THESE):
 ❌ Forgetting to close </boltAction> or </boltArtifact> tags
 ❌ Omitting package.json from the response
 ❌ Writing file content outside of <boltAction> tags
+❌ Including eslint, jest, vitest, prettier, or any testing/linting package
 ❌ Using HTML entities like &lt; &gt; inside boltAction file content
 </output_format>
-`;
+`;

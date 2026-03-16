@@ -57,6 +57,11 @@ function checkKillSwitch(req: express.Request, res: express.Response, next: expr
   next();
 }
 
+// Health check endpoint for Render cold-start wakeups
+app.get("/api/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
 // Auth routes (public)
 app.use("/api/auth", authRouter);
 

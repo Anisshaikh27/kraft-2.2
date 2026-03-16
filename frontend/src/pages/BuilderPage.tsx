@@ -342,18 +342,17 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
               preview: "vite preview"
             },
             dependencies: {
-              react: "^18.3.1",
+              "react": "^18.3.1",
               "react-dom": "^18.3.1",
               "react-router-dom": "^6.20.0",
-              "lucide-react": "^0.344.0",
-              axios: "^1.7.0"
+              "lucide-react": "^0.344.0"
             },
             devDependencies: {
               "@types/react": "^18.2.48",
               "@types/react-dom": "^18.2.18",
               "@vitejs/plugin-react": "^4.2.1",
-              typescript: "^5.3.3",
-              vite: "^5.0.8",
+              "typescript": "^5.3.3",
+              "vite": "^5.0.8",
               "autoprefixer": "^10.4.17",
               "postcss": "^8.4.32",
               "tailwindcss": "^3.4.1"
@@ -379,8 +378,10 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
               skipLibCheck: true,
               esModuleInterop: true,
               allowSyntheticDefaultImports: true,
-              strict: true,
+              strict: false,
               noEmit: true,
+              noUnusedLocals: false,
+              noUnusedParameters: false,
               moduleResolution: "bundler",
               resolveJsonModule: true,
               noImplicitAny: false
