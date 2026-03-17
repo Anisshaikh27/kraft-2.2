@@ -1,5 +1,5 @@
-import { WebContainer } from "@webcontainer/api";
-import { useEffect, useState } from "react";
+import { WebContainer, WebContainerProcess } from "@webcontainer/api";
+import { useEffect, useState, useRef } from "react";
 import { AlertCircle, Loader, RefreshCw } from "lucide-react";
 
 interface PreviewFrameProps {
@@ -11,6 +11,9 @@ export function PreviewFrame({ webContainer }: PreviewFrameProps) {
   const [error, setError] = useState("");
   const [installing, setInstalling] = useState(true);
   const [progress, setProgress] = useState(0);
+
+  // Track the dev server process so we can kill it on unmount
+  const devProcessRef = useRef<WebContainerProcess | null>(null);
 
   async function main() {
     try {
@@ -52,6 +55,7 @@ export function PreviewFrame({ webContainer }: PreviewFrameProps) {
 
       // Start dev server
       const devProcess = await webContainer.spawn("npm", ["run", "dev"]);
+      devProcessRef.current = devProcess;
 
       // Stream dev server output
       devProcess.output.pipeTo(
@@ -84,6 +88,18 @@ export function PreviewFrame({ webContainer }: PreviewFrameProps) {
     if (webContainer) {
       main();
     }
+
+    // Cleanup function: When the user leaves the Preview tab
+    return () => {
+      // 1. We purposefully DO NOT kill the installProcess, so it finishes in the background.
+      
+      // 2. We aggressively kill the dev server so the port is freed and memory is saved.
+      if (devProcessRef.current) {
+        console.log("🛑 Killing Preview dev server...");
+        devProcessRef.current.kill();
+        devProcessRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webContainer]);
 
