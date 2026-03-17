@@ -210,7 +210,6 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
         // Merge new files with existing files synchronously
         const updatedFiles = mergeFilesFromSteps(files, newSteps);
         setFiles(updatedFiles);
-        saveFilesToDB(updatedFiles);
         
         // Check if package.json was included
         const hasPackageJson = newSteps.some(
@@ -274,6 +273,18 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
     console.log("Mounting files to WebContainer:", JSON.stringify(mountStructure, null, 2));
     webContainer.mount(mountStructure);
   }, [files, webContainer]);
+
+  // Auto-save files when they change (debounced)
+  useEffect(() => {
+    if (!projectIdRef.current || !token || files.length === 0) return;
+
+    const timer = setTimeout(() => {
+      saveFilesToDB(files);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, token]);
 
   // Load an existing project from DB (when resuming from Dashboard)
   async function loadExistingProject(projectId: string) {
@@ -437,6 +448,9 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
           { headers: getAuthHeaders(token) }
         );
         projectIdRef.current = projectRes.data.project.id;
+        
+        // Save initial boilerplate to DB so project is not empty if AI fails
+        saveFilesToDB(currentFiles);
       } catch (err) {
         console.warn("Failed to create project in DB:", err);
       }
@@ -496,8 +510,7 @@ export function BuilderPage({ files, setFiles }: BuilderProps) {
       
       setFiles(currentFiles);
 
-      // Save generated files to DB
-      saveFilesToDB(currentFiles);
+      // Files will be auto-saved by the useEffect
 
       // Mark all as completed
       setSteps((prevSteps) =>
