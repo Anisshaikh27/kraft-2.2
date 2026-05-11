@@ -1,0 +1,22 @@
+
+Strong programming skills in Python, and familiarity with libraries like Transformers,Pandas, scikit-learn, Seaborn,LangChain, LlamaIndex, PyTorch, or TensorFlow.
+
+
+• Experience building applications with OpenAI, Anthropic Claude, Google Gemini, or opensource LLMs.
+
+
+• Working knowledge of retrieval-augmented generation (RAG) pipelines and vector databases.
+
+
+• Understanding of MLOps, model evaluation, prompt tuning, and deployment pipelines.
+
+
+• Build and tune LLM-based applications using platforms like Vertex, GPT, Lamma, Hugging Face, etc.
+
+
+• Create robust prompt engineering strategies and reusable prompt templates.
+
+
+• Integrate generative AI with enterprise applications using APIs, knowledge graphs, vector
+
+databases (e.g., PG Vector, Neo4j, Mongodb), and orchestration tools.

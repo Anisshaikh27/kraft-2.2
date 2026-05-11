@@ -33,7 +33,7 @@ async function generateWithGemini(
   systemPrompt?: string
 ): Promise<string> {
   const model = genAI.getGenerativeModel({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-2.5-flash",
     systemInstruction: systemPrompt || undefined,
   });
 
@@ -99,7 +99,7 @@ async function generateWithClaude(
 
 export async function determineTemplate(prompt: string): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(
       `${prompt}\n\nReturn either 'node' or 'react' based on what this project should be. Only return a single word either 'node' or 'react'. Do not return anything extra.`
     );
