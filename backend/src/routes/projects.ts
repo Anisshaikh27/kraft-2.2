@@ -128,22 +128,25 @@ router.put("/:id/files", async (req: AuthRequest, res: Response) => {
 
     const { files } = parsed.data;
 
-    // Upsert all files sequentially to avoid connection pool exhaustion
-    for (const file of files) {
-      await prisma.projectFile.upsert({
-        where: {
-          projectId_path: { projectId: project.id, path: file.path },
-        },
-        update: { content: file.content },
-        create: { projectId: project.id, path: file.path, content: file.content },
-      });
-    }
+    // Use a transaction so all upserts share a single connection
+    // (prevents pool exhaustion on Render free-tier Postgres)
+    await prisma.$transaction(async (tx) => {
+      for (const file of files) {
+        await tx.projectFile.upsert({
+          where: {
+            projectId_path: { projectId: project.id, path: file.path },
+          },
+          update: { content: file.content },
+          create: { projectId: project.id, path: file.path, content: file.content },
+        });
+      }
 
-    // Update project updatedAt
-    await prisma.project.update({
-      where: { id: project.id },
-      data: { updatedAt: new Date() },
-    });
+      // Update project updatedAt
+      await tx.project.update({
+        where: { id: project.id },
+        data: { updatedAt: new Date() },
+      });
+    }, { timeout: 30000 });
 
     res.json({ message: "Files saved" });
   } catch (error) {

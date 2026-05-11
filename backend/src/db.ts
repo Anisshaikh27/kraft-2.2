@@ -6,7 +6,18 @@ export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
     log: ['error', 'warn'],
+    datasourceUrl: appendPoolParams(process.env.DATABASE_URL || ''),
   });
+
+/**
+ * Appends connection pool parameters to the DATABASE_URL so Prisma
+ * doesn't exhaust the pool on batch operations (Render free-tier default is 1).
+ */
+function appendPoolParams(url: string): string {
+  if (!url) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}connection_limit=5&pool_timeout=20`;
+}
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
