@@ -56,8 +56,9 @@ async function generateWithGemini(
     }
   }
 
+  // Use gemini-3.1-pro-preview for code generation — superior React/front-end output
   const response = await genAI.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-pro-preview",
     contents: mergedContents,
     config: {
       systemInstruction: systemPrompt || undefined,
@@ -94,6 +95,7 @@ async function generateWithClaude(
 
 export async function determineTemplate(prompt: string): Promise<string> {
   try {
+    // Use 2.5-flash for template detection — fast, cheap, sufficient for classification
     const response = await genAI.models.generateContent({
       model: "gemini-2.5-flash",
       contents: `${prompt}\n\nReturn either 'node' or 'react' based on what this project should be. Only return a single word either 'node' or 'react'. Do not return anything extra.`,
