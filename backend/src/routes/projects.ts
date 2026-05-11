@@ -128,18 +128,16 @@ router.put("/:id/files", async (req: AuthRequest, res: Response) => {
 
     const { files } = parsed.data;
 
-    // Upsert all files
-    await Promise.all(
-      files.map((file) =>
-        prisma.projectFile.upsert({
-          where: {
-            projectId_path: { projectId: project.id, path: file.path },
-          },
-          update: { content: file.content },
-          create: { projectId: project.id, path: file.path, content: file.content },
-        })
-      )
-    );
+    // Upsert all files sequentially to avoid connection pool exhaustion
+    for (const file of files) {
+      await prisma.projectFile.upsert({
+        where: {
+          projectId_path: { projectId: project.id, path: file.path },
+        },
+        update: { content: file.content },
+        create: { projectId: project.id, path: file.path, content: file.content },
+      });
+    }
 
     // Update project updatedAt
     await prisma.project.update({
